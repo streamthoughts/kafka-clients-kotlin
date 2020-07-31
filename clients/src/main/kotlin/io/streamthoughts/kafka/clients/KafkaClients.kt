@@ -19,6 +19,7 @@
 package io.streamthoughts.kafka.clients
 
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerWorker
+import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import io.streamthoughts.kafka.clients.producer.KafkaProducerContainer
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
 import org.apache.kafka.common.serialization.Deserializer
@@ -38,8 +39,8 @@ class KafkaClients(val kafka: Kafka) {
         return KafkaConsumerWorker(client, groupId, keyDeserializer, valueDeserializer).also(init)
     }
 
-    fun<K, V> producer(init: ProducerContainer<K, V>.() -> Unit): ProducerContainer<K, V> {
-        return KafkaProducerContainer<K, V>(client).also(init)
+    fun<K, V> producer(init: ProducerContainer.Builder<K, V>.() -> Unit): ProducerContainer<K, V> {
+        return KafkaProducerContainer.Builder<K, V>(KafkaProducerConfigs(client)).also(init).build()
     }
 }
 

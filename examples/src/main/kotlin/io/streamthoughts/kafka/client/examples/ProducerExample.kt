@@ -21,6 +21,7 @@ package io.streamthoughts.kafka.client.examples
 import io.streamthoughts.kafka.clients.kafka
 import io.streamthoughts.kafka.clients.producer.Acks
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
+import io.streamthoughts.kafka.clients.producer.callback.closeOnErrorProducerSendCallback
 import org.apache.kafka.common.serialization.StringSerializer
 
 fun main(args: Array<String>) {
@@ -38,6 +39,8 @@ fun main(args: Array<String>) {
             valueSerializer(StringSerializer())
 
             defaultTopic("demo-topic")
+
+            onSendError(closeOnErrorProducerSendCallback())
 
             onSendSuccess{ _, _, metadata ->
                 println("Record was sent successfully: topic=${metadata.topic()}, partition=${metadata.partition()}, offset=${metadata.offset()} ")

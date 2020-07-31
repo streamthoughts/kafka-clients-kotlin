@@ -19,19 +19,18 @@
 package io.streamthoughts.kafka.clients.producer
 
 import io.streamthoughts.kafka.clients.KafkaRecord
+import io.streamthoughts.kafka.clients.producer.callback.OnSendErrorCallback
+import io.streamthoughts.kafka.clients.producer.callback.OnSendSuccessCallback
+import io.streamthoughts.kafka.clients.producer.callback.ProducerSendCallback
 import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.Metric
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.PartitionInfo
 import org.apache.kafka.common.serialization.Serializer
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Future
-
-
-typealias OnSendErrorCallback<K, V> = (producer: Producer<K, V>, record: ProducerRecord<K?, V?>, error: Exception) -> Unit
-typealias OnSendSuccessCallback<K, V> = (producer: Producer<K, V>, record: ProducerRecord<K?, V?>, metadata: RecordMetadata) -> Unit
 
 
 sealed class TransactionResult
@@ -55,44 +54,82 @@ object CommittedTransactionResult: TransactionResult()
 
 interface ProducerContainer<K, V> {
 
-    /**
-     * Configure this [ProducerContainer].
-     */
-    fun configure(init: KafkaProducerConfigs.() -> Unit):  KafkaProducerContainer<K, V>
+    enum class State {
+        /**
+         * The [ProducerContainer] is created.
+         */
+        CREATED,
+
+        /**
+         * The [ProducerContainer] is initialized and can be used for sending records.
+         */
+        STARTED,
+
+        /**
+         * The [ProducerContainer] is closing
+         */
+        PENDING_SHUTDOWN,
+
+        /**
+         * The [ProducerContainer] is closed.
+         */
+        CLOSED,
+    }
+
+    interface Builder<K, V> {
+        /**
+         * Configure this [ProducerContainer].
+         */
+        fun configure(init: KafkaProducerConfigs.() -> Unit): Builder<K, V>
+
+        /**
+         * Sets the [producerFactory] to be used for creating a new [Producer] client.
+         */
+        fun producerFactory(producerFactory: ProducerFactory): Builder<K, V>
+
+        /**
+         * Set the default topic to send records
+         */
+        fun defaultTopic(topic: String): Builder<K, V>
+
+        /**
+         * Set the default [callback] to invoke when an error happen while sending a record.
+         */
+        fun onSendError(callback: OnSendErrorCallback<K, V>): Builder<K, V>
+
+        /**
+         * Set the default [callback] to invoke when a record has been sent successfully.
+         */
+        fun onSendSuccess(callback: OnSendSuccessCallback<K, V>): Builder<K, V>
+
+        /**
+         * Set the default [callback] to be invoked after a sent record completes either successfully or unsuccessfully.
+         *
+         * @see onSendError
+         * @see onSendSuccess
+         */
+        fun onSendCallback(callback: ProducerSendCallback<K, V>): Builder<K, V>
+
+        /**
+         * Set the [serializer] to be used for serializing the record-key.
+         */
+        fun keySerializer(serializer: Serializer<K>): Builder<K, V>
+
+        /**
+         * Set the [serializer] to be used for serializing the record-value.
+         */
+        fun valueSerializer(serializer: Serializer<V>): Builder<K, V>
+    }
 
     /**
-     * Set the default topic to send records
-     */
-    fun defaultTopic(topic: String):  KafkaProducerContainer<K, V>
-
-    /**
-     * Set the default [callback] to invoke when an error happen while sending a record.
-     */
-    fun onSendError(callback: OnSendErrorCallback<K, V>):  KafkaProducerContainer<K, V>
-
-    /**
-     * Set the default [callback] to invoke when a record has been sent successfully.
-     */
-    fun onSendSuccess(callback: OnSendSuccessCallback<K, V>):  KafkaProducerContainer<K, V>
-
-    /**
-     * Set the [serializer] to be used for serializing the record-key.
-     */
-    fun keySerializer(serializer: Serializer<K>):  KafkaProducerContainer<K, V>
-
-    /**
-     * Set the [serializer] to be used for serializing the record-value.
-     */
-    fun valueSerializer(serializer: Serializer<V>):  KafkaProducerContainer<K, V>
-
-    /**
-     * Send a record for the given [value] to the given to the given [topic] (or the default one if null is given)
+     * Asynchronously send a record for the given [value] to the given to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return  a [Future] of [SendResult]
      */
     fun send(value : V,
              topic: String? = null,
@@ -104,13 +141,14 @@ interface ProducerContainer<K, V> {
     }
 
     /**
-     * Send a record for the given [key] and [value] to the given [topic] (or the default one if null is given)
+     * Asynchronously send a record for the given [key] and [value] to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return  a [Future] of [SendResult]
      */
     fun send(key: K?= null,
              value: V? = null,
@@ -123,13 +161,14 @@ interface ProducerContainer<K, V> {
     }
 
     /**
-     * Send the given key-value [pair] to the given [topic] (or the default one if null is given)
+     * Asynchronously send the given key-value [pair] to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return a [Future] of [SendResult]
      */
     fun send(pair: Pair<K, V?>,
              topic: String? = null,
@@ -141,13 +180,14 @@ interface ProducerContainer<K, V> {
     }
 
     /**
-     * Send all the given key-value [pairs] to the given [topic] (or the default one if null is given)
+     * Asynchronously send all the given key-value [pairs] to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return a [Future] of [SendResult]
      */
     fun send(pairs: Collection<Pair<K, V>>,
              topic: String? = null,
@@ -157,25 +197,25 @@ interface ProducerContainer<K, V> {
              onError: OnSendErrorCallback<K, V>? = null) : Future<List<SendResult<K?, V?>>>
 
     /**
-     * Send the given [record] to the given [topic] (or the default one if null is given)
-     * and [partition] with the given [timestamp].
+     * Asynchronously send the given [record].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return a [Future] of [SendResult]
      */
     fun send(record: KafkaRecord<K?, V?>,
              onSuccess: OnSendSuccessCallback<K, V>? = null,
              onError: OnSendErrorCallback<K, V>? = null) : Future<SendResult<K?, V?>>
     /**
-     * Send the given [record] to the given [topic] (or the default one if null is given)
-     * and [partition] with the given [timestamp].
+     * Asynchronously send the given [record].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
      * Otherwise invoke [onError] if an error happen while sending.
      *
      * @see Producer.send
+     * @return a [Future] of [SendResult]
      */
     fun send(record: ProducerRecord<K?, V?>,
              onSuccess: OnSendSuccessCallback<K, V>? = null,
@@ -212,9 +252,23 @@ interface ProducerContainer<K, V> {
     fun flush()
 
     /**
+     * @return the [State] of this container.
+     */
+    fun state(): State
+
+    /**
      * Close this [ProducerContainer].
      *
      * @see [Producer.close].
      */
-    fun close()
+    fun close() {
+        close(Duration.ofMillis(Long.MAX_VALUE))
+    }
+
+    /**
+     * Close this [ProducerContainer].
+     *
+     * @see [Producer.close].
+     */
+    fun close(timeout: Duration)
 }

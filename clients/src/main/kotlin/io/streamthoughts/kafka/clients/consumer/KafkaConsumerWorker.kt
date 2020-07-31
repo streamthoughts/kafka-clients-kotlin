@@ -41,7 +41,7 @@ import java.util.regex.Pattern
 /**
  * [KafkaConsumerWorker] is the default [ConsumerWorker] implementation.
  */
-class KafkaConsumerWorker<K, V>(
+class KafkaConsumerWorker<K, V> (
     clientConfigure: KafkaClientConfigs,
     private val groupId: String,
     private val keyDeserializer: Deserializer<K>,

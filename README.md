@@ -19,7 +19,7 @@ In addition, it provides builder classes to facilitate the configuration of `Pro
 
 ## How to contribute ?
 
-The project is in its early stages so it can be very easy to contribute by proposing APIs changes, new features and so one. 
+The project is in its early stages so it can be very easy to contribute by proposing APIs changes, new features and so on. 
 Any feedback, bug reports and PRs are greatly appreciated!
 
 * Source Code: https://github.com/streamthoughts/kafka-clients-kotlin

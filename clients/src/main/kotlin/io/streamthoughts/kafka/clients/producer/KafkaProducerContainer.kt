@@ -19,14 +19,16 @@
 package io.streamthoughts.kafka.clients.producer
 
 import ch.qos.logback.classic.Level
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import io.streamthoughts.kafka.clients.KafkaRecord
 import io.streamthoughts.kafka.clients.loggerFor
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.Producer
-import org.apache.kafka.clients.producer.RecordMetadata
+import io.streamthoughts.kafka.clients.producer.callback.OnSendErrorCallback
+import io.streamthoughts.kafka.clients.producer.callback.OnSendSuccessCallback
+import io.streamthoughts.kafka.clients.producer.callback.ProducerSendCallback
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.Metric
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.PartitionInfo
@@ -35,19 +37,22 @@ import org.apache.kafka.common.errors.OutOfOrderSequenceException
 import org.apache.kafka.common.errors.ProducerFencedException
 import org.apache.kafka.common.serialization.Serializer
 import org.slf4j.Logger
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
-
-class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
-                                   private var keySerializer: Serializer<K> ?= null,
-                                   private var valueSerializer: Serializer<V> ?= null,
-                                   private var producerFactory: ProducerFactory? = null,
-                                   private var defaultTopic: String? = null,
-                                   private var defaultOnSendError: OnSendErrorCallback<K, V>? = null,
-                                   private var defaultOnSendSuccess: OnSendSuccessCallback<K, V>? = null
+/**
+ * The default kafka-based [ProducerContainer] implementation
+ */
+class KafkaProducerContainer<K, V> private constructor(
+   private val configs: KafkaProducerConfigs,
+   private val keySerializer: Serializer<K> ?= null,
+   private val valueSerializer: Serializer<V> ?= null,
+   private val producerFactory: ProducerFactory? = null,
+   private val defaultTopic: String? = null,
+   private val onSendCallback: ProducerSendCallback<K, V>
 ): ProducerContainer<K, V> {
 
     companion object {
@@ -61,30 +66,12 @@ class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
         }
     }
 
-    private val configs: KafkaProducerConfigs = KafkaProducerConfigs(clientConfigure)
+    @Volatile
+    private var state = ProducerContainer.State.CREATED
 
     private var transactionId: String? = null
     private lateinit var clientId: String
     private lateinit var producer: Producer<K, V>
-
-    override fun configure(init: KafkaProducerConfigs.() -> Unit) =
-        apply {  configs.init() }
-
-    override fun defaultTopic(topic: String) =
-        apply { this.defaultTopic = topic }
-
-    override fun onSendError(callback: OnSendErrorCallback<K, V>) =
-        apply { this.defaultOnSendError = callback }
-
-    override fun onSendSuccess(callback: OnSendSuccessCallback<K, V>) =
-        apply { this.defaultOnSendSuccess = callback }
-
-    override fun keySerializer(serializer: Serializer<K>) =
-        apply { this.keySerializer = serializer }
-
-    override fun valueSerializer(serializer: Serializer<V>) =
-        apply { this.valueSerializer = serializer }
-
 
     override fun send(
         pairs: Collection<Pair<K, V>>,
@@ -120,16 +107,21 @@ class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
         onSuccess: OnSendSuccessCallback<K, V>?,
         onError: OnSendErrorCallback<K, V>?
     ) : CompletableFuture<SendResult<K?, V?>> {
-        return runIfInitializedOrThrowIllegal {
+        return runOrThrowIfIllegalState {
             val future = CompletableFuture<SendResult<K?, V?>>()
             logWithProducerInfo(Level.DEBUG, "Sending record $record")
             producer.send(record) { metadata: RecordMetadata, exception: Exception? ->
+
                 if (exception != null) {
                     future.completeExceptionally(exception)
-                    (onError ?: defaultOnSendError)?.invoke(producer, record, exception)
+
+                    (onError?.let { DelegateSendCallback(onError = onError) }?: onSendCallback)
+                        .onSendError(this, record, exception)
                 } else {
                     future.complete(SendResult(record, metadata))
-                    (onSuccess ?: defaultOnSendSuccess)?.invoke(producer, record, metadata)
+
+                    (onSuccess?.let { DelegateSendCallback(onSuccess = onSuccess) }?: onSendCallback)
+                        .onSendSuccess(this, record, metadata)
                 }
             }
             future
@@ -139,7 +131,7 @@ class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
     override fun <T> execute(action: (producer: Producer<K, V>) -> T) = run { action(producer)  }
 
     override fun runTx(action: (ProducerContainer<K, V>) -> Unit): TransactionResult {
-        return runIfInitializedOrThrowIllegal {
+        return runOrThrowIfIllegalState {
             try {
                 producer.beginTransaction()
                 action.invoke(this)
@@ -184,40 +176,49 @@ class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
         producer = producerFactory?.make(producerConfigs, keySerializer, valueSerializer) ?: KafkaProducer(producerConfigs, keySerializer, valueSerializer)
         if (ProducerConfig.TRANSACTIONAL_ID_CONFIG in producerConfigs)
             producer.initTransactions()
+        state = ProducerContainer.State.STARTED
     }
 
     override fun metrics(topic: String): Map<MetricName, Metric> {
-        return runIfInitializedOrThrowIllegal {
+        return runOrThrowIfIllegalState {
             producer.metrics()
         }
     }
 
     override fun partitionsFor(topic: String): List<PartitionInfo> {
-        return runIfInitializedOrThrowIllegal {
+        return runOrThrowIfIllegalState {
             producer.partitionsFor(topic)
         }
     }
 
     override fun flush() {
-        runIfInitializedOrThrowIllegal {
+        runOrThrowIfIllegalState {
             logWithProducerInfo(Level.DEBUG, "Flushing")
             producer.flush()
         }
     }
 
-    override fun close() {
-        runIfInitializedOrThrowIllegal {
+    override fun close(timeout: Duration) {
+        if (isClosed()) return // silently ignore call if producer is already closed.
+
+        runOrThrowIfIllegalState {
+            state = ProducerContainer.State.PENDING_SHUTDOWN
             logWithProducerInfo(Level.INFO, "Closing")
-            producer.close()
+            producer.close(timeout)
+            state = ProducerContainer.State.CLOSED
             logWithProducerInfo(Level.INFO, "Closed")
         }
     }
 
+    private fun isClosed() =
+        state == ProducerContainer.State.CLOSED ||
+        state == ProducerContainer.State.PENDING_SHUTDOWN
+
     private fun isInitialized() = this::producer.isInitialized
 
-    private fun <R> runIfInitializedOrThrowIllegal(action: () -> R): R {
-        if (!isInitialized())
-            throw IllegalStateException("Producer is not initialized yet.")
+    private fun <R> runOrThrowIfIllegalState(action: () -> R): R {
+        if (!isInitialized()) throw IllegalStateException("Producer is not initialized yet")
+        if (isClosed()) throw IllegalStateException("Cannot perform operation after producer has been closed")
         return action.invoke()
     }
 
@@ -229,6 +230,74 @@ class KafkaProducerContainer<K, V>(clientConfigure: KafkaClientConfigs,
             Level.INFO -> Log.info(message)
             Level.DEBUG -> Log.debug(message)
             else -> Log.debug(message)
+        }
+    }
+
+    override fun state(): ProducerContainer.State = state
+
+    data class Builder<K, V>(
+        var configs: KafkaProducerConfigs,
+        var keySerializer: Serializer<K> ?= null,
+        var valueSerializer: Serializer<V> ?= null,
+        var producerFactory: ProducerFactory? = null,
+        var defaultTopic: String? = null,
+        var onSendSuccess: OnSendSuccessCallback<K, V>? = null,
+        var onSendError: OnSendErrorCallback<K, V>? = null,
+        var onSendCallback: ProducerSendCallback<K, V>? = null
+    ) : ProducerContainer.Builder<K, V> {
+
+        override fun configure(init: KafkaProducerConfigs.() -> Unit) =
+            apply {  configs.init() }
+
+        override fun defaultTopic(topic: String) =
+            apply { this.defaultTopic = topic }
+
+        override fun producerFactory(producerFactory: ProducerFactory) =
+            apply { this.producerFactory = producerFactory }
+
+        override fun onSendError(callback: OnSendErrorCallback<K, V>) =
+            apply { this.onSendError = callback }
+
+        override fun onSendSuccess(callback: OnSendSuccessCallback<K, V>) =
+            apply { this.onSendSuccess = callback }
+
+        override fun onSendCallback(callback: ProducerSendCallback<K, V>) =
+            apply { this.onSendCallback = callback }
+
+        override fun keySerializer(serializer: Serializer<K>) =
+            apply { this.keySerializer = serializer }
+
+        override fun valueSerializer(serializer: Serializer<V>) =
+            apply { this.valueSerializer = serializer }
+
+        fun build(): ProducerContainer<K, V> = KafkaProducerContainer(
+            configs,
+            keySerializer,
+            valueSerializer,
+            producerFactory,
+            defaultTopic,
+            onSendCallback ?: DelegateSendCallback(onSendSuccess, onSendError)
+        )
+    }
+
+    private class DelegateSendCallback<K, V>(
+        private val onSuccess: OnSendSuccessCallback<K, V>? = null,
+        private val onError: OnSendErrorCallback<K, V>? = null
+    ) : ProducerSendCallback<K, V> {
+
+        override fun onSendError(
+            container: ProducerContainer<K, V>,
+            record: ProducerRecord<K?, V?>,
+            error: Exception
+        ) {
+            this.onError?.invoke(container, record, error)
+        }
+        override fun onSendSuccess(
+            container: ProducerContainer<K, V>,
+            record: ProducerRecord<K?, V?>,
+            metadata: RecordMetadata
+        ) {
+            onSuccess?.invoke(container, record, metadata)
         }
     }
 }
