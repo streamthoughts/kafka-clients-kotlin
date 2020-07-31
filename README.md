@@ -9,11 +9,13 @@ Thank's for your comprehension.
 
 ## What is Kafka Clients for Kotlin ?
 
-The **Kafka Client for Kotlin** projects packs with convenient Kotlin API for the development of Kafka-based event-driven applications.
-It provides high-level abstractions both for sending records (`ProducerContainer`) and consuming records from topics using one or many
-concurrent consumers (`KafkaConsumerWorker`).
+The **Kafka Clients for Kotlin** projects packs with convenient Kotlin API for the development of Kafka-based event-driven applications.
+It provides high-level abstractions both for sending records `ProducerContainer` and consuming records from topics using one or many
+concurrent consumers `KafkaConsumerWorker`.
 
-**Kafka Client for Kotlin** is based on the pure java `kafka-clients`.
+In addition, it provides builder classes to facilitate the configuration of `Producer` and `Consumer` objects: `KafkaProducerConfigs` and `KafkaConsumerConfigs`
+
+**Kafka Clients for Kotlin** is based on the pure java `kafka-clients`.
 
 ## How to contribute ?
 
@@ -23,10 +25,10 @@ Any feedback, bug reports and PRs are greatly appreciated!
 * Source Code: https://github.com/streamthoughts/kafka-clients-kotlin
 * Issue Tracker: https://github.com/streamthoughts/kafka-clients-kotlin/issues
 
-## Show your support
+
+## Show your support
 
 You think this project can help you or your team to develop kafka-based application with Kotlin ?
-
 Please ⭐ this repository to support us!
 
 ## How to give it a try ?
