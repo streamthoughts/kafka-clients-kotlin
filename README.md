@@ -1,5 +1,7 @@
 # Kafka Clients for Kotlin
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/streamthoughts/kafka-connect-file-pulse/blob/master/LICENSE)
+
 ## Warning
 
 Be aware that this package is still in heavy development. Some breaking change will occur in future weeks and months.
@@ -11,8 +13,27 @@ The **Kafka Client for Kotlin** projects packs with convenient Kotlin API for th
 It provides high-level abstractions both for sending records (`ProducerContainer`) and consuming records from topics using one or many
 concurrent consumers (`KafkaConsumerWorker`).
 
-## For Maven
+**Kafka Client for Kotlin** is based on the pure java `kafka-clients`.
 
+## How to contribute ?
+
+The project is in its early stages so it can be very easy to contribute by proposing APIs changes, new features and so one. 
+Any feedback, bug reports and PRs are greatly appreciated!
+
+* Source Code: https://github.com/streamthoughts/kafka-clients-kotlin
+* Issue Tracker: https://github.com/streamthoughts/kafka-clients-kotlin/issues
+
+## Show your support
+
+You think this project can help you or your team to develop kafka-based application with Kotlin ?
+
+Please ⭐ this repository to support us!
+
+## How to give it a try ?
+
+Just add **Kafka Client for Kotlin** to the dependencies of your projects. 
+
+### For Maven
 ```xml
 <dependency>
   <groupId>io.streamthoughts</groupId>
@@ -24,6 +45,8 @@ concurrent consumers (`KafkaConsumerWorker`).
 ## Getting Started
 
 ### Kafka Producer
+
+See the full code-snippet : [ProducerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerExample.kt)
 
 ```kotlin
 val producer: ProducerContainer<String, String> = kafka("localhost:9092") {
@@ -56,6 +79,8 @@ with(producer) {
 ```
 
 ### Kafka Consumer
+
+See the full code-snippet : [ConsumerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerExample.kt)
 
 ```kotlin
 val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
