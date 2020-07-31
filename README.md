@@ -11,6 +11,16 @@ The **Kafka Client for Kotlin** projects packs with convenient Kotlin API for th
 It provides high-level abstractions both for sending records (`ProducerContainer`) and consuming records from topics using one or many
 concurrent consumers (`KafkaConsumerWorker`).
 
+## For Maven
+
+```xml
+<dependency>
+  <groupId>io.streamthoughts</groupId>
+  <artifactId>kafka-clients-kotlin</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
 ## Getting Started
 
 ### Kafka Producer
