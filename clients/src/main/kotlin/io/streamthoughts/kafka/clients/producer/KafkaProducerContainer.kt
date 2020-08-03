@@ -48,11 +48,11 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class KafkaProducerContainer<K, V> private constructor(
    private val configs: KafkaProducerConfigs,
+   private val onSendCallback: ProducerSendCallback<K, V>,
    private val keySerializer: Serializer<K> ?= null,
    private val valueSerializer: Serializer<V> ?= null,
    private val producerFactory: ProducerFactory? = null,
-   private val defaultTopic: String? = null,
-   private val onSendCallback: ProducerSendCallback<K, V>
+   private val defaultTopic: String? = null
 ): ProducerContainer<K, V> {
 
     companion object {
@@ -272,11 +272,11 @@ class KafkaProducerContainer<K, V> private constructor(
 
         fun build(): ProducerContainer<K, V> = KafkaProducerContainer(
             configs,
+            onSendCallback ?: DelegateSendCallback(onSendSuccess, onSendError),
             keySerializer,
             valueSerializer,
             producerFactory,
-            defaultTopic,
-            onSendCallback ?: DelegateSendCallback(onSendSuccess, onSendError)
+            defaultTopic
         )
     }
 
