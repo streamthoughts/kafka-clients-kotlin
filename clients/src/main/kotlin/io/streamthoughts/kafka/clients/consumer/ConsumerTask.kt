@@ -18,9 +18,9 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
-interface ConsumerTask {
+interface ConsumerTask{
 
-    enum class ConsumerState {
+    enum class State {
         /**
          * The [ConsumerTask] is created.
          */
@@ -75,5 +75,8 @@ interface ConsumerTask {
      */
     fun shutdown()
 
-    fun state(): ConsumerState
+    /**
+     * @return the [State] of this [ConsumerTask].
+     */
+    fun state(): State
 }

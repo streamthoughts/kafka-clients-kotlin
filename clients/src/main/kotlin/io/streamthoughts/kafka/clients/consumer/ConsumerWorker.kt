@@ -19,6 +19,7 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
+import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import java.util.regex.Pattern
 
 /**
@@ -27,51 +28,61 @@ import java.util.regex.Pattern
  */
 interface ConsumerWorker<K, V> {
 
+
+    interface Builder<K, V> {
+        /**
+         * Configures this worker.
+         */
+        fun configure(init: KafkaConsumerConfigs.() -> Unit)
+
+        /**
+         * Sets the [ConsumerFactory] to be used for creating a new [org.apache.kafka.clients.consumer.Consumer] instance.
+         */
+        fun factory(consumerFactory: ConsumerFactory): Builder<K, V>
+
+        /**
+         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are assigned.
+         */
+        fun onPartitionsAssigned(listener: RebalanceListener): Builder<K, V>
+
+        /**
+         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
+         */
+        fun onPartitionsRevokedBeforeCommit(listener: RebalanceListener): Builder<K, V>
+
+        /**
+         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
+         */
+        fun onPartitionsRevokedAfterCommit(listener: RebalanceListener): Builder<K, V>
+
+        /**
+         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are lost.
+         */
+        fun onPartitionsLost(listener: RebalanceListener): Builder<K, V>
+
+        /**
+         * Sets the [DeserializationErrorHandler] to invoke when a exception happen while de-serializing a record.
+         */
+        fun onDeserializationError(handler: DeserializationErrorHandler<K, V>): Builder<K, V>
+
+        /**
+         * Sets the [ConsumerBatchRecordsListener] to invoke when a non-empty batch of records is returned from
+         * the [org.apache.kafka.clients.consumer.Consumer.poll] method.
+         */
+        fun onConsumed(listener: ConsumerBatchRecordsListener<K, V>): Builder<K, V>
+
+        /**
+         * Build a new [ConsumerWorker].
+         *
+         * @return the new [ConsumerWorker] instance.
+         */
+        fun build(): ConsumerWorker<K, V>
+    }
+
     /**
      * Returns the group id the [org.apache.kafka.clients.consumer.Consumer] managed by this [ConsumerWorker] belong.
      */
     fun groupId(): String
-
-    /**
-     * Configures this worker.
-     */
-    fun configure(init: KafkaConsumerConfigs.() -> Unit)
-
-    /**
-     * Sets the [ConsumerFactory] to be used for creating a new [org.apache.kafka.clients.consumer.Consumer] instance.
-     */
-    fun factory(consumerFactory : ConsumerFactory): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are assigned.
-     */
-    fun onPartitionsAssigned(listener : RebalanceListener): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
-     */
-    fun onPartitionsRevokedBeforeCommit(listener : RebalanceListener): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
-     */
-    fun onPartitionsRevokedAfterCommit(listener : RebalanceListener): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are lost.
-     */
-    fun onPartitionsLost(listener : RebalanceListener): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [DeserializationErrorHandler] to invoke when a exception happen while de-serializing a record.
-     */
-    fun onDeserializationError(handler : DeserializationErrorHandler<K, V>): ConsumerWorker<K, V>
-
-    /**
-     * Sets the [ConsumerBatchRecordListener] to invoke when a non-empty batch of records is returned from
-     * the [org.apache.kafka.clients.consumer.Consumer.poll] method.
-     */
-    fun onConsumed(listener: ConsumerBatchRecordListener<K, V>): ConsumerWorker<K, V>
 
     /**
      * Creates as many [org.apache.kafka.clients.consumer.Consumer] as given [maxParallelHint] that will

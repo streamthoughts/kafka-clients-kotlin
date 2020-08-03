@@ -18,10 +18,11 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerWorker.KafkaConsumerWorker
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
+import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
+import io.streamthoughts.kafka.clients.consumer.listener.noop
 import io.streamthoughts.kafka.clients.loggerFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
@@ -30,6 +31,8 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import org.apache.kafka.clients.consumer.Consumer
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.Deserializer
 import java.util.concurrent.ExecutorService
@@ -42,26 +45,22 @@ import java.util.regex.Pattern
  * [KafkaConsumerWorker] is the default [ConsumerWorker] implementation.
  */
 class KafkaConsumerWorker<K, V> (
-    clientConfigure: KafkaClientConfigs,
-    private val groupId: String,
+    private val configs: KafkaConsumerConfigs,
     private val keyDeserializer: Deserializer<K>,
     private val valueDeserializer: Deserializer<V>,
-    private var onPartitionsAssigned: RebalanceListener? = null,
-    private var onPartitionsRevokedBeforeCommit: RebalanceListener? = null,
-    private var onPartitionsRevokedAfterCommit: RebalanceListener? = null,
-    private var onPartitionsLost: RebalanceListener? = null,
-    private var batchRecordListener: ConsumerBatchRecordListener<K, V> = { _, _ -> Unit},
-    private var onDeserializationError: DeserializationErrorHandler<K, V> = DeserializationErrorHandlers.logAndFail(),
-    private var consumerFactory: ConsumerFactory = ConsumerFactory.DefaultConsumerFactory
+    private val consumerRebalanceListener: ConsumerAwareRebalanceListener,
+    private val batchRecordListener: ConsumerBatchRecordsListener<K, V>,
+    private val onDeserializationError: DeserializationErrorHandler<K, V>,
+    private val consumerFactory: ConsumerFactory = ConsumerFactory.DefaultConsumerFactory
     ): ConsumerWorker<K, V> {
 
     companion object KafkaConsumerWorker {
         private val Log = loggerFor(KafkaConsumerWorker::class.java)
     }
 
-    private val defaultClientIdPrefix = "io.streamthoughts.kafka.clients.consumer-$groupId"
+    private val groupId: String = configs.asMap()[ConsumerConfig.GROUP_ID_CONFIG].toString()
 
-    private val consumerConfigs: KafkaConsumerConfigs = KafkaConsumerConfigs(clientConfigure, groupId = groupId)
+    private val defaultClientIdPrefix: String
 
     private var consumerTasks: Array<KafkaConsumerTask<K, V>> = emptyArray()
 
@@ -69,46 +68,13 @@ class KafkaConsumerWorker<K, V> (
 
     private var isRunning = AtomicBoolean(false)
 
+    init {
+        defaultClientIdPrefix= "consumer-$groupId"
+    }
+
     override fun groupId(): String {
         return groupId
     }
-
-    override fun configure(init: KafkaConsumerConfigs.() -> Unit) {
-        consumerConfigs.init()
-    }
-
-    override fun factory(consumerFactory : ConsumerFactory) =
-        apply { this.consumerFactory = consumerFactory }
-
-    override fun onPartitionsAssigned(listener : RebalanceListener) =
-        apply { this.onPartitionsAssigned = listener }
-
-    override fun onPartitionsRevokedBeforeCommit(listener : RebalanceListener) =
-        apply { this.onPartitionsRevokedAfterCommit = listener }
-
-    override fun onPartitionsRevokedAfterCommit(listener : RebalanceListener) =
-        apply { this.onPartitionsRevokedAfterCommit = listener }
-
-    override fun onPartitionsLost(listener : RebalanceListener) =
-        apply { this.onPartitionsLost = listener }
-
-    override fun onDeserializationError(handler : DeserializationErrorHandler<K, V>)  =
-        apply { onDeserializationError = handler }
-
-    override fun onConsumed(listener: ConsumerBatchRecordListener<K, V>) =
-        apply { this.batchRecordListener = listener }
-
-    @JvmName("onConsumedRecord")
-    fun onConsumed(listener: ConsumerRecordListener<K, V>) =
-        apply { this.batchRecordListener = { c, records -> records.forEach { listener.invoke(c, it) } } }
-
-    @JvmName("onConsumedValueRecordWithKey")
-    fun onConsumed(listener: ConsumerValueRecordWithKeyListener<K, V>) =
-        apply { this.batchRecordListener = { c, records -> records.forEach { listener.invoke(c, Pair(it.key(), it.value())) } } }
-
-    @JvmName("onConsumedValueRecord")
-    fun onConsumed(listener: ConsumerValueRecordListener<V>) =
-        apply { this.batchRecordListener = { c, records -> records.forEach { listener.invoke(c, it.value()) } } }
 
     @Synchronized
     override fun start(topic: String, maxParallelHint: Int) {
@@ -131,13 +97,13 @@ class KafkaConsumerWorker<K, V> (
         consumerTasks = Array(maxParallelHint) { taskId ->
             KafkaConsumerTask(
                 consumerFactory,
-                consumerConfigs,
+                configs,
                 subscription,
                 keyDeserializer,
                 valueDeserializer,
                 batchRecordListener,
                 clientId = computeClientId(taskId),
-                consumerAwareRebalanceListener = SimpleConsumerAwareRebalanceListener(),
+                consumerAwareRebalanceListener = consumerRebalanceListener,
                 deserializationErrorHandler = onDeserializationError
             )
         }
@@ -146,7 +112,7 @@ class KafkaConsumerWorker<K, V> (
     }
 
     private fun computeClientId(taskId: Int): String {
-        val clientId = consumerConfigs.clientConfigs.clientId
+        val clientId = configs.clientConfigs.clientId
         return clientId?.let { "$defaultClientIdPrefix-$taskId" } ?: ""
     }
 
@@ -189,31 +155,81 @@ class KafkaConsumerWorker<K, V> (
         consumerTasks.forEach { it.resume() }
     }
 
-    inner class SimpleConsumerAwareRebalanceListener: ConsumerAwareRebalanceListener {
-        override fun onPartitionsRevokedBeforeCommit(consumer: Consumer<*, *>,
-                                                     partitions: Collection<TopicPartition>) {
-            doInvoke(onPartitionsRevokedBeforeCommit, consumer, partitions)
+    data class Builder<K, V>(
+        var configs: KafkaConsumerConfigs,
+        var keyDeserializer: Deserializer<K>,
+        var valueDeserializer: Deserializer<V>,
+        var onPartitionsAssigned: RebalanceListener? = null,
+        var onPartitionsRevokedBeforeCommit: RebalanceListener? = null,
+        var onPartitionsRevokedAfterCommit: RebalanceListener? = null,
+        var onPartitionsLost: RebalanceListener? = null,
+        var batchRecordListener: ConsumerBatchRecordsListener<K, V>? = null,
+        var onDeserializationError: DeserializationErrorHandler<K, V>? = null,
+        var consumerFactory: ConsumerFactory? = null
+    ) : ConsumerWorker.Builder<K, V> {
+
+        override fun configure(init: KafkaConsumerConfigs.() -> Unit) {
+            configs.init()
         }
 
-        override fun onPartitionsRevokedAfterCommit(consumer: Consumer<*, *>,
-                                                    partitions: Collection<TopicPartition>) {
-            doInvoke(onPartitionsRevokedAfterCommit, consumer, partitions)
-        }
+        override fun factory(consumerFactory : ConsumerFactory) =
+            apply { this.consumerFactory = consumerFactory }
 
-        override fun onPartitionsAssigned(consumer: Consumer<*, *>,
+        override fun onPartitionsAssigned(listener : RebalanceListener) =
+            apply { this.onPartitionsAssigned = listener }
+
+        override fun onPartitionsRevokedBeforeCommit(listener : RebalanceListener) =
+            apply { this.onPartitionsRevokedAfterCommit = listener }
+
+        override fun onPartitionsRevokedAfterCommit(listener : RebalanceListener) =
+            apply { this.onPartitionsRevokedAfterCommit = listener }
+
+        override fun onPartitionsLost(listener : RebalanceListener) =
+            apply { this.onPartitionsLost = listener }
+
+        override fun onDeserializationError(handler : DeserializationErrorHandler<K, V>)  =
+            apply { onDeserializationError = handler }
+
+        override fun onConsumed(listener: ConsumerBatchRecordsListener<K, V>) =
+            apply { this.batchRecordListener = listener }
+
+        override fun build(): ConsumerWorker<K, V>  =
+            KafkaConsumerWorker(
+                configs,
+                keyDeserializer,
+                valueDeserializer,
+                SimpleConsumerAwareRebalanceListener(),
+                batchRecordListener ?: noop(),
+                onDeserializationError ?: DeserializationErrorHandlers.logAndFail(),
+                consumerFactory ?: ConsumerFactory.DefaultConsumerFactory
+            )
+
+        inner class SimpleConsumerAwareRebalanceListener: ConsumerAwareRebalanceListener {
+            override fun onPartitionsRevokedBeforeCommit(consumer: Consumer<*, *>,
+                                                         partitions: Collection<TopicPartition>) {
+                doInvoke(onPartitionsRevokedBeforeCommit, consumer, partitions)
+            }
+
+            override fun onPartitionsRevokedAfterCommit(consumer: Consumer<*, *>,
+                                                        partitions: Collection<TopicPartition>) {
+                doInvoke(onPartitionsRevokedAfterCommit, consumer, partitions)
+            }
+
+            override fun onPartitionsAssigned(consumer: Consumer<*, *>,
+                                              partitions: Collection<TopicPartition>) {
+                doInvoke(onPartitionsAssigned, consumer, partitions)
+            }
+
+            override fun onPartitionsLost(consumer: Consumer<*, *>,
                                           partitions: Collection<TopicPartition>) {
-            doInvoke(onPartitionsAssigned, consumer, partitions)
-        }
+                doInvoke(onPartitionsLost, consumer, partitions)
+            }
 
-        override fun onPartitionsLost(consumer: Consumer<*, *>,
-                                      partitions: Collection<TopicPartition>) {
-            doInvoke(onPartitionsLost, consumer, partitions)
-        }
-
-        private fun doInvoke(listener: RebalanceListener?,
-                             consumer: Consumer<*, *>,
-                             partitions: Collection<TopicPartition>) {
-            listener?.invoke(consumer, partitions)
+            private fun doInvoke(listener: RebalanceListener?,
+                                 consumer: Consumer<*, *>,
+                                 partitions: Collection<TopicPartition>) {
+                listener?.invoke(consumer, partitions)
+            }
         }
     }
 }

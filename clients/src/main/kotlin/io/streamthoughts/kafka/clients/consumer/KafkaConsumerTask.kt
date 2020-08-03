@@ -19,8 +19,9 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import ch.qos.logback.classic.Level
-import io.streamthoughts.kafka.clients.consumer.ConsumerTask.ConsumerState
+import io.streamthoughts.kafka.clients.consumer.ConsumerTask.State
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
+import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import io.streamthoughts.kafka.clients.loggerFor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.yield
@@ -37,7 +38,7 @@ import org.apache.kafka.common.errors.WakeupException
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.Deserializer
 import java.time.Duration
-import java.util.LinkedList
+import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
@@ -49,7 +50,7 @@ class KafkaConsumerTask<K, V>(
     private val subscription: TopicSubscription,
     private val keyDeserializer: Deserializer<K>,
     private val valueDeserializer: Deserializer<V>,
-    private val listener: ConsumerBatchRecordListener<K, V>,
+    private val listener: ConsumerBatchRecordsListener<K, V>,
     private var clientId: String = "",
     private val deserializationErrorHandler: DeserializationErrorHandler<K, V>,
     private val consumerAwareRebalanceListener : ConsumerAwareRebalanceListener? = null
@@ -60,7 +61,7 @@ class KafkaConsumerTask<K, V>(
     }
 
     @Volatile
-    private var state = ConsumerState.CREATED
+    private var state = State.CREATED
 
     private val consumer: Consumer<ByteArray, ByteArray>
 
@@ -108,21 +109,21 @@ class KafkaConsumerTask<K, V>(
     override fun pause() {
         val assignment = consumer.assignment()
         logWithConsumerInfo(Level.INFO, "Pausing consumption for: $assignment")
-        state = ConsumerState.PAUSED
+        state = State.PAUSED
         consumer.pause(assignment)
     }
 
     override fun resume() {
         val assignment = consumer.assignment()
         logWithConsumerInfo(Level.INFO, "Resuming consumption for: $assignment")
-        state = ConsumerState.RUNNING
+        state = State.RUNNING
         consumer.resume(assignment)
     }
 
-    override fun state(): ConsumerState = state
+    override fun state(): State = state
 
     override suspend fun run() {
-        state = ConsumerState.STARTING
+        state = State.STARTING
         logWithConsumerInfo(Level.INFO, "Starting")
         subscribeConsumer()
         try {
@@ -139,9 +140,9 @@ class KafkaConsumerTask<K, V>(
             logWithConsumerInfo(Level.INFO, "Stop polling due to the io.streamthoughts.kafka.clients.consumer-task has been canceled")
             throw e
         } finally {
-            state = ConsumerState.PENDING_SHUTDOWN
+            state = State.PENDING_SHUTDOWN
             consumer.close()
-            state = ConsumerState.SHUTDOWN
+            state = State.SHUTDOWN
             logWithConsumerInfo(Level.INFO, "Closed")
             shutdownLatch.countDown()
         }
@@ -161,8 +162,8 @@ class KafkaConsumerTask<K, V>(
     private fun pollOnce() {
         val records: ConsumerRecords<ByteArray, ByteArray> = consumer.poll(pollTime)
 
-        if (state == ConsumerState.PARTITIONS_ASSIGNED) {
-            state = ConsumerState.RUNNING
+        if (state == State.PARTITIONS_ASSIGNED) {
+            state = State.RUNNING
         }
 
         // deserialize all records using user-provided Deserializer
@@ -177,7 +178,7 @@ class KafkaConsumerTask<K, V>(
     }
 
     private fun processBatchRecords(records: ConsumerRecords<K?, V?>) {
-        listener.invoke(consumer, records)
+        listener.handle(this, records)
     }
 
     private fun updateConsumedOffsets(records: ConsumerRecords<*, *>) {
@@ -241,7 +242,7 @@ class KafkaConsumerTask<K, V>(
         return object: ConsumerRebalanceListener{
             override fun onPartitionsAssigned(partitions: MutableCollection<TopicPartition>) {
                 logWithConsumerInfo(Level.INFO, "Partitions Assigned: $partitions")
-                state = ConsumerState.PARTITIONS_ASSIGNED
+                state = State.PARTITIONS_ASSIGNED
                 assignedPartitions.addAll(partitions)
                 consumerAwareRebalanceListener?.onPartitionsAssigned(consumer, partitions)
                 if (!partitions.isEmpty()) mayCommitOnAssignment()
@@ -249,7 +250,7 @@ class KafkaConsumerTask<K, V>(
 
             override fun onPartitionsRevoked(partitions: MutableCollection<TopicPartition>) {
                 logWithConsumerInfo(Level.INFO, "Partitions Revoked: $partitions")
-                state = ConsumerState.PARTITIONS_REVOKED
+                state = State.PARTITIONS_REVOKED
                 consumerAwareRebalanceListener?.onPartitionsRevokedBeforeCommit(consumer, partitions)
 
                 doCommitSync(offsetAndMetadataToCommit())

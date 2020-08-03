@@ -19,8 +19,10 @@
 package io.streamthoughts.kafka.client.examples
 
 import io.streamthoughts.kafka.clients.consumer.AutoOffsetReset
+import io.streamthoughts.kafka.clients.consumer.ConsumerTask
 import io.streamthoughts.kafka.clients.consumer.ConsumerWorker
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
+import io.streamthoughts.kafka.clients.consumer.listener.forEach
 import io.streamthoughts.kafka.clients.kafka
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -54,9 +56,9 @@ fun main(args: Array<String>) {
                 println("Partitions revoked: $partitions")
             }
 
-            onConsumed { _: Consumer<*, *>, value: String? ->
+            onConsumed(forEach { _: ConsumerTask, value: String? ->
                 println("consumed record-value: $value")
-            }
+            })
         }
     }
 

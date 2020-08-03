@@ -19,12 +19,6 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import org.apache.kafka.clients.consumer.Consumer
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.common.TopicPartition
 
-typealias ConsumerBatchRecordListener<K, V> = (Consumer<*, *>, ConsumerRecords<K?, V?>) -> Unit
-typealias ConsumerRecordListener<K, V> = (Consumer<*, *>, ConsumerRecord<K?, V?>) -> Unit
-typealias ConsumerValueRecordWithKeyListener<K, V> = (Consumer<*, *>, Pair<K?, V?>) -> Unit
-typealias ConsumerValueRecordListener<V> = (Consumer<*, *>, V?) -> Unit
 typealias RebalanceListener = (Consumer<*, *>, Collection<TopicPartition> ) -> Unit
