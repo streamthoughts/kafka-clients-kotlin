@@ -18,6 +18,8 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
+import org.apache.kafka.clients.consumer.Consumer
+
 interface ConsumerTask{
 
     enum class State {
@@ -79,4 +81,9 @@ interface ConsumerTask{
      * @return the [State] of this [ConsumerTask].
      */
     fun state(): State
+
+    /**
+     * Executes the given [action] with the underlying [Consumer].
+     */
+    fun <T> execute(action: (consumer: Consumer<ByteArray, ByteArray>) -> T): T
 }

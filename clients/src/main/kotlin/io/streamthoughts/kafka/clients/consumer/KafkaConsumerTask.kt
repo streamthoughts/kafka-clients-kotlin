@@ -327,4 +327,6 @@ class KafkaConsumerTask<K, V>(
             else -> Log.debug(message)
         }
     }
+
+    override fun <T> execute(action: (client: Consumer<ByteArray, ByteArray>) -> T): T  = run { action(consumer)  }
 }
