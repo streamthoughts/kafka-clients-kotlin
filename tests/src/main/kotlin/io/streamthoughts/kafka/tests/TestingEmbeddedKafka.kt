@@ -217,16 +217,16 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
         valueDeserializer: Deserializer<V>? = null,
         consumerConfig: Map<String, Any?> = emptyMap()): List<ConsumerRecord<K, V>> {
 
-         val consumer = consumerClient(consumerConfig, keyDeserializer, valueDeserializer)
-         consumer.subscribe(listOf(topic))
-         val records : MutableList<ConsumerRecord<K, V>> = mutableListOf()
+        consumerClient(consumerConfig, keyDeserializer, valueDeserializer).use { client ->
+            client.subscribe(listOf(topic))
+            val records: MutableList<ConsumerRecord<K, V>> = mutableListOf()
 
-         val begin = System.currentTimeMillis()
-         while ( (System.currentTimeMillis() - begin) < timeout.toMillis() && records.size < expectedNumRecords) {
-             consumer.poll(Duration.ofMillis(100)).forEach { records.add(it) }
-         }
-        return records
-
+            val begin = System.currentTimeMillis()
+            while ((System.currentTimeMillis() - begin) < timeout.toMillis() && records.size < expectedNumRecords) {
+                client.poll(Duration.ofMillis(100)).forEach { records.add(it) }
+            }
+            return records
+        }
     }
 
     /**
