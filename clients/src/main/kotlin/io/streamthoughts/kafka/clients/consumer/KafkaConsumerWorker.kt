@@ -63,7 +63,7 @@ class KafkaConsumerWorker<K, V> (
 
     private val consumerConfigs: KafkaConsumerConfigs = KafkaConsumerConfigs(clientConfigure, groupId = groupId)
 
-    private var consumerTasks: Array<ConsumerTask<K, V>> = emptyArray()
+    private var consumerTasks: Array<KafkaConsumerTask<K, V>> = emptyArray()
 
     private var consumerJobs: List<Job> = mutableListOf()
 
@@ -129,7 +129,7 @@ class KafkaConsumerWorker<K, V> (
     private fun start(subscription: TopicSubscription, maxParallelHint: Int) {
         Log.info("KafkaConsumerWorker(group: $groupId): Initializing io.streamthoughts.kafka.clients.consumer tasks ($maxParallelHint)")
         consumerTasks = Array(maxParallelHint) { taskId ->
-            ConsumerTask(
+            KafkaConsumerTask(
                 consumerFactory,
                 consumerConfigs,
                 subscription,
@@ -140,7 +140,6 @@ class KafkaConsumerWorker<K, V> (
                 consumerAwareRebalanceListener = SimpleConsumerAwareRebalanceListener(),
                 deserializationErrorHandler = onDeserializationError
             )
-
         }
         doStart()
         isRunning.set(true)
