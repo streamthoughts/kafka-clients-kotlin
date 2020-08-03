@@ -33,7 +33,7 @@ Please ⭐ this repository to support us!
 
 ## How to give it a try ?
 
-Just add **Kafka Client for Kotlin** to the dependencies of your projects. 
+Just add **Kafka Clients for Kotlin** to the dependencies of your projects. 
 
 ### For Maven
 ```xml
@@ -115,6 +115,19 @@ val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
     }
 }
 consumerWorker.start("topic-test", maxParallelHint = 4)
+```
+
+## How to build project ?
+
+Kafka Clients for Kotlin uses [maven-wrapper](https://github.com/takari/maven-wrapper).
+
+```bash
+$ ./mvnw clean package
+```
+
+Run Tests
+```bash
+$ ./mvnw clean test
 ```
 
 ## Licence
