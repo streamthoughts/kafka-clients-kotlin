@@ -18,6 +18,7 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
+import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import java.util.regex.Pattern
@@ -41,29 +42,38 @@ interface ConsumerWorker<K, V> {
         fun factory(consumerFactory: ConsumerFactory): Builder<K, V>
 
         /**
-         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are assigned.
+         * Sets the [listener] to invoke when a rebalance is in progress and partitions are assigned.
          */
         fun onPartitionsAssigned(listener: RebalanceListener): Builder<K, V>
 
         /**
-         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
+         * Sets the [listener] to invoke when a rebalance is in progress and partitions are revoked.
          */
         fun onPartitionsRevokedBeforeCommit(listener: RebalanceListener): Builder<K, V>
 
         /**
-         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are revoked.
+         * Sets the [listener] to invoke when a rebalance is in progress and partitions are revoked.
          */
         fun onPartitionsRevokedAfterCommit(listener: RebalanceListener): Builder<K, V>
 
         /**
-         * Sets the [RebalanceListener] to invoke when a rebalance is in progress and partitions are lost.
+         * Sets the [listener] to invoke when a rebalance is in progress and partitions are lost.
          */
         fun onPartitionsLost(listener: RebalanceListener): Builder<K, V>
 
         /**
-         * Sets the [DeserializationErrorHandler] to invoke when a exception happen while de-serializing a record.
+         * Sets the [handler] to invoke when a exception happen while de-serializing a record.
          */
         fun onDeserializationError(handler: DeserializationErrorHandler<K, V>): Builder<K, V>
+
+        /**
+         * Sets the [handler] to invoked when a error is thrown while processing last records returned from the
+         * the [org.apache.kafka.clients.consumer.Consumer.poll] method, i.e. an exception thrown by the provided
+         * [ConsumerBatchRecordsListener].
+         *
+         * @see [onConsumed]
+         */
+        fun onConsumedError(handler: ConsumedErrorHandler): Builder<K, V>
 
         /**
          * Sets the [ConsumerBatchRecordsListener] to invoke when a non-empty batch of records is returned from

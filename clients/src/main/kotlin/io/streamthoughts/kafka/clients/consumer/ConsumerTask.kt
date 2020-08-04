@@ -19,6 +19,9 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import org.apache.kafka.clients.consumer.Consumer
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.common.TopicPartition
+import java.time.Duration
 
 interface ConsumerTask{
 
@@ -72,10 +75,16 @@ interface ConsumerTask{
     fun resume()
 
     /**
-     * Shutdowns the [ConsumerTask]
+     * Shutdowns the [ConsumerTask] and wait for completion.
      * @see org.apache.kafka.clients.consumer.Consumer.close
      */
     fun shutdown()
+
+    /**
+     * Shutdowns the [ConsumerTask] and wait for completion until the given [timeout].
+     * @see org.apache.kafka.clients.consumer.Consumer.close
+     */
+    fun shutdown(timeout: Duration)
 
     /**
      * @return the [State] of this [ConsumerTask].
@@ -86,4 +95,20 @@ interface ConsumerTask{
      * Executes the given [action] with the underlying [Consumer].
      */
     fun <T> execute(action: (consumer: Consumer<ByteArray, ByteArray>) -> T): T
+
+    /**
+     * Commits asynchronously the positions of the internal [Consumer] for the given [offsets].
+     * If passed [offsets] is {@code null} then commit the [Consumer] positions for its current partition assignments.
+     *
+     * @see [Consumer.commitAsync]
+     */
+    fun commitAsync(offsets: Map<TopicPartition, OffsetAndMetadata>? = null)
+
+    /**
+     * Commits synchronously the positions of the internal [Consumer] for the given offsets.
+     * If passed [offsets] is {@code null} then commit the [Consumer] positions for its current partition assignments.
+     *
+     * @see [Consumer.commitAsync]
+     */
+    fun commitSync(offsets: Map<TopicPartition, OffsetAndMetadata>? = null)
 }

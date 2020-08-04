@@ -19,6 +19,8 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerWorker.KafkaConsumerWorker
+import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
+import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers.closeTaskOnConsumedError
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
@@ -32,7 +34,6 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.Deserializer
 import java.util.concurrent.ExecutorService
@@ -50,6 +51,7 @@ class KafkaConsumerWorker<K, V> (
     private val valueDeserializer: Deserializer<V>,
     private val consumerRebalanceListener: ConsumerAwareRebalanceListener,
     private val batchRecordListener: ConsumerBatchRecordsListener<K, V>,
+    private val onConsumedError: ConsumedErrorHandler,
     private val onDeserializationError: DeserializationErrorHandler<K, V>,
     private val consumerFactory: ConsumerFactory = ConsumerFactory.DefaultConsumerFactory
     ): ConsumerWorker<K, V> {
@@ -104,7 +106,8 @@ class KafkaConsumerWorker<K, V> (
                 batchRecordListener,
                 clientId = computeClientId(taskId),
                 consumerAwareRebalanceListener = consumerRebalanceListener,
-                deserializationErrorHandler = onDeserializationError
+                deserializationErrorHandler = onDeserializationError,
+                consumedErrorHandler = onConsumedError
             )
         }
         doStart()
@@ -165,7 +168,8 @@ class KafkaConsumerWorker<K, V> (
         var onPartitionsLost: RebalanceListener? = null,
         var batchRecordListener: ConsumerBatchRecordsListener<K, V>? = null,
         var onDeserializationError: DeserializationErrorHandler<K, V>? = null,
-        var consumerFactory: ConsumerFactory? = null
+        var consumerFactory: ConsumerFactory? = null,
+        var onConsumedError: ConsumedErrorHandler? = null
     ) : ConsumerWorker.Builder<K, V> {
 
         override fun configure(init: KafkaConsumerConfigs.() -> Unit) {
@@ -190,6 +194,9 @@ class KafkaConsumerWorker<K, V> (
         override fun onDeserializationError(handler : DeserializationErrorHandler<K, V>)  =
             apply { onDeserializationError = handler }
 
+        override fun onConsumedError(handler : ConsumedErrorHandler)  =
+            apply { onConsumedError = handler }
+
         override fun onConsumed(listener: ConsumerBatchRecordsListener<K, V>) =
             apply { this.batchRecordListener = listener }
 
@@ -200,6 +207,7 @@ class KafkaConsumerWorker<K, V> (
                 valueDeserializer,
                 SimpleConsumerAwareRebalanceListener(),
                 batchRecordListener ?: noop(),
+                onConsumedError ?: closeTaskOnConsumedError(),
                 onDeserializationError ?: DeserializationErrorHandlers.logAndFail(),
                 consumerFactory ?: ConsumerFactory.DefaultConsumerFactory
             )

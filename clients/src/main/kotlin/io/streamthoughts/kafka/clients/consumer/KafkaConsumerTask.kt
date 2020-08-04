@@ -20,6 +20,7 @@ package io.streamthoughts.kafka.clients.consumer
 
 import ch.qos.logback.classic.Level
 import io.streamthoughts.kafka.clients.consumer.ConsumerTask.State
+import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import io.streamthoughts.kafka.clients.loggerFor
@@ -38,8 +39,9 @@ import org.apache.kafka.common.errors.WakeupException
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.Deserializer
 import java.time.Duration
-import java.util.*
+import java.util.LinkedList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
 import kotlin.math.max
@@ -53,11 +55,16 @@ class KafkaConsumerTask<K, V>(
     private val listener: ConsumerBatchRecordsListener<K, V>,
     private var clientId: String = "",
     private val deserializationErrorHandler: DeserializationErrorHandler<K, V>,
+    private val consumedErrorHandler: ConsumedErrorHandler? = null,
     private val consumerAwareRebalanceListener : ConsumerAwareRebalanceListener? = null
 ) : ConsumerTask {
 
     companion object {
         private val Log = loggerFor(KafkaConsumerTask::class.java)
+
+        private fun <K, V> flatten(records: Map<TopicPartition, List<ConsumerRecord<K?, V?>>>): List<ConsumerRecord<K?, V?>> {
+            return records.flatMap { (_, v) -> v }.toList()
+        }
     }
 
     @Volatile
@@ -134,10 +141,10 @@ class KafkaConsumerTask<K, V>(
         } catch (e: WakeupException) {
             if (!isShutdown.get()) throw e
             else {
-                logWithConsumerInfo(Level.INFO, "Stop polling due to the io.streamthoughts.kafka.clients.consumer-task is being closed")
+                logWithConsumerInfo(Level.INFO, "Stop polling due to the consumer-task is being closed")
             }
         } catch (e: CancellationException) {
-            logWithConsumerInfo(Level.INFO, "Stop polling due to the io.streamthoughts.kafka.clients.consumer-task has been canceled")
+            logWithConsumerInfo(Level.INFO, "Stop polling due to the consumer-task has been canceled")
             throw e
         } finally {
             state = State.PENDING_SHUTDOWN
@@ -160,21 +167,36 @@ class KafkaConsumerTask<K, V>(
     }
 
     private fun pollOnce() {
-        val records: ConsumerRecords<ByteArray, ByteArray> = consumer.poll(pollTime)
+        val rawRecords: ConsumerRecords<ByteArray, ByteArray> = consumer.poll(pollTime)
 
         if (state == State.PARTITIONS_ASSIGNED) {
             state = State.RUNNING
         }
 
-        // deserialize all records using user-provided Deserializer
-        val deserialized : Map<TopicPartition, List<ConsumerRecord<K?, V?>>> =
-            records.partitions()
-                .map { Pair(it, deserialize(records.records(it))) }
-                .toMap()
+        if (!rawRecords.isEmpty) {
+            // deserialize all records using user-provided Deserializer
+            val recordsPerPartitions: Map<TopicPartition, List<ConsumerRecord<K?, V?>>> =
+                rawRecords.partitions()
+                    .map { Pair(it, deserialize(rawRecords.records(it))) }
+                    .toMap()
+            try {
+                processBatchRecords(ConsumerRecords(recordsPerPartitions))
+                updateConsumedOffsets(rawRecords) // only update once all records from batch have been processed.
+                mayCommitAfterBatch()
+            } catch (e: Exception) {
+                mayHandleConsumedError(recordsPerPartitions, e)
+            }
+        }
+    }
 
-        processBatchRecords(ConsumerRecords(deserialized))
-        updateConsumedOffsets(records) // only update once all records from batch have been processed.
-        mayCommitAfterBatch()
+    private fun mayHandleConsumedError(recordsPerPartitions: Map<TopicPartition, List<ConsumerRecord<K?, V?>>>,
+                                       thrownException: Exception
+    ) {
+        consumedErrorHandler?.handle(
+            this,
+            flatten(recordsPerPartitions),
+            thrownException
+        )
     }
 
     private fun processBatchRecords(records: ConsumerRecords<K?, V?>) {
@@ -198,6 +220,19 @@ class KafkaConsumerTask<K, V>(
         isShutdown.set(true)
         consumer.wakeup()
         shutdownLatch.await()
+    }
+
+    override fun shutdown(timeout: Duration) {
+        logWithConsumerInfo(Level.INFO, "Closing")
+        isShutdown.set(true)
+        consumer.wakeup()
+        if (timeout != Duration.ZERO) {
+            try {
+                shutdownLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                logWithConsumerInfo(Level.WARN, "Failed to close consumer before timeout")
+            }
+        }
     }
 
     private fun deserialize(records: List<ConsumerRecord<ByteArray, ByteArray>>): List<ConsumerRecord<K?, V?>> {
@@ -253,7 +288,7 @@ class KafkaConsumerTask<K, V>(
                 state = State.PARTITIONS_REVOKED
                 consumerAwareRebalanceListener?.onPartitionsRevokedBeforeCommit(consumer, partitions)
 
-                doCommitSync(offsetAndMetadataToCommit())
+                commitSync(offsetAndMetadataToCommit())
 
                 consumerAwareRebalanceListener?.onPartitionsRevokedAfterCommit(consumer, partitions)
                 assignedPartitions.clear()
@@ -267,11 +302,11 @@ class KafkaConsumerTask<K, V>(
         }
     }
 
-    private fun offsetAndMetadataToCommit() = consumedOffsets.map { Pair(it.key, OffsetAndMetadata(it.value)) }.toMap()
+    private fun offsetAndMetadataToCommit() = consumedOffsets.map { Pair(it.key, OffsetAndMetadata(it.value + 1)) }.toMap()
 
     private fun mayCommitAfterBatch() {
         if (!isAutoCommitEnabled && consumedOffsets.isNotEmpty()) {
-            doCommitAsync(offsetAndMetadataToCommit())
+            commitAsync(offsetAndMetadataToCommit())
             consumedOffsets.clear()
         }
     }
@@ -282,11 +317,11 @@ class KafkaConsumerTask<K, V>(
                 val offset = consumer.position(topicPartition)
                 Pair(topicPartition, OffsetAndMetadata(offset))
             }.toMap()
-            doCommitSync(positionsToCommit)
+            commitSync(positionsToCommit)
         }
     }
 
-    private fun doCommitAsync(offsets: Map<TopicPartition, OffsetAndMetadata>? = null) {
+    override fun commitAsync(offsets: Map<TopicPartition, OffsetAndMetadata>?) {
         logWithConsumerInfo(Level.INFO, "Committing offsets async-synchronously for positions: $offsets")
         consumer.commitAsync(offsets) {
             _, exception -> if (exception != null)    {
@@ -295,8 +330,8 @@ class KafkaConsumerTask<K, V>(
         }
     }
 
-    private fun doCommitSync(offsets: Map<TopicPartition, OffsetAndMetadata>? = null) {
-        if (consumer.assignment().isEmpty()) return // no need to commit if no partition is assign to this io.streamthoughts.kafka.clients.consumer
+    override fun commitSync(offsets: Map<TopicPartition, OffsetAndMetadata>?) {
+        if (consumer.assignment().isEmpty()) return // no need to commit if no partition is assign to this consumer
         try {
             if (offsets == null) {
                 logWithConsumerInfo(Level.WARN, "Committing offsets synchronously for consumed records")
@@ -307,7 +342,7 @@ class KafkaConsumerTask<K, V>(
             }
             logWithConsumerInfo(Level.WARN, "Offsets committed for partitions: $assignedPartitions")
         } catch (e: RetriableCommitFailedException) {
-            doCommitSync(offsets)
+            commitSync(offsets)
         } catch (e : RebalanceInProgressException) {
             logWithConsumerInfo(Level.WARN, "Error while committing offsets due to a rebalance in progress. Ignored")
         }
