@@ -20,12 +20,15 @@ package io.streamthoughts.kafka.clients.producer
 
 import io.streamthoughts.kafka.clients.Kafka
 import io.streamthoughts.kafka.clients.KafkaClientConfigs
+import io.streamthoughts.kafka.clients.loggerFor
 import io.streamthoughts.kafka.tests.junit.EmbeddedSingleNodeKafkaCluster
 import io.streamthoughts.kafka.tests.TestingEmbeddedKafka
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
@@ -33,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
+import org.slf4j.Logger
 import java.time.Duration
 import java.util.Properties
 
@@ -41,32 +45,50 @@ import java.util.Properties
 class KafkaProducerContainerTest(private val cluster: TestingEmbeddedKafka) {
 
     companion object {
+        private val Log: Logger = loggerFor(KafkaProducerContainerTest::class.java)
+
         const val DEFAULT_TOPIC = "default-topic"
         const val TEST_TOPIC = "test-topic"
     }
     private lateinit var kafka : Kafka
 
-    private lateinit var  configs: KafkaProducerConfigs
+    private lateinit var configs: KafkaProducerConfigs
 
     private lateinit var container : ProducerContainer<String, String>
 
     @BeforeAll
     fun setUp() {
-        kafka = Kafka(cluster.bootstrapServers().split(",").toTypedArray())
+        kafka = Kafka(cluster.bootstrapServers())
         configs = KafkaProducerConfigs(KafkaClientConfigs(kafka))
-
         createAndInitContainer()
+    }
+
+    @AfterAll
+    fun tearDown() {
+        container.close()
     }
 
     @BeforeEach
     fun createTopics() {
-        cluster.createTopic(DEFAULT_TOPIC)
-        cluster.createTopic(TEST_TOPIC)
+        val retryOnTopicExistsException = fun (topic: String) {
+            while (true) {
+                try {
+                    cluster.createTopic(topic)
+                    break
+                } catch (e: TopicExistsException) {
+                    Log.warn("Cannot create $topic due to TopicExistsException. Ignore error and retry")
+                }
+            }
+        }
+        retryOnTopicExistsException(DEFAULT_TOPIC)
+        retryOnTopicExistsException(TEST_TOPIC)
     }
 
+
+
     @AfterEach
-    fun dropTopics() {
-        cluster.deleteTopics(listOf(DEFAULT_TOPIC, TEST_TOPIC))
+    fun deleteTopics() {
+        cluster.deleteTopics(DEFAULT_TOPIC, TEST_TOPIC)
     }
 
     private fun createAndInitContainer() {
@@ -108,7 +130,7 @@ class KafkaProducerContainerTest(private val cluster: TestingEmbeddedKafka) {
                                timeout: Duration = Duration.ofMinutes(1),
                                expectedNumRecords: Int = 1): List<ConsumerRecord<String, String>> {
         val configs = Properties()
-        configs.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.bootstrapServers())
+        configs.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.bootstrapServers().joinToString())
         val records = cluster.consumeUntilMinRecordsOrTimeout(
             topic = topic,
             timeout = Duration.ofMinutes(1),

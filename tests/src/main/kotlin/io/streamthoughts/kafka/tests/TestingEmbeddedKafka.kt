@@ -44,6 +44,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.ExecutionException
 import kotlin.collections.HashMap
 
 /**
@@ -54,13 +55,26 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
     companion object {
         val Log: Logger = LoggerFactory.getLogger(TestingEmbeddedKafka::class.java)
 
-        private fun getTopicNames(adminClient: Admin): MutableSet<String> {
+        private fun listTopicNames(adminClient: Admin): MutableSet<String> {
             return try {
                 adminClient.listTopics().names().get()
             } catch (e: Exception) {
                 throw RuntimeException("Failed to get topic names", e)
             }
         }
+
+        private fun waitForTrue(timeout: Duration,
+                                time: Long = System.currentTimeMillis(),
+                                action: () -> Boolean): Boolean {
+
+            val timeoutMs = timeout.toMillis()
+            var result = false
+            while (System.currentTimeMillis() - time < timeoutMs && !result) {
+                result = action()
+            }
+            return result
+        }
+
     }
 
     private val config: MutableMap<Any, Any> = HashMap(config)
@@ -71,7 +85,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
      * @param securityProtocol the security protocol the returned broker list should use.
      *
      */
-    fun bootstrapServers(securityProtocol: SecurityProtocol? = null): String {
+    fun bootstrapServers(securityProtocol: SecurityProtocol? = null): Array<String> {
         val port = if (securityProtocol == null) {
             val listenerName = kafka.config().advertisedListeners().apply(0).listenerName()
             kafka.boundPort(listenerName)
@@ -79,7 +93,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
         else {
             kafka.boundPort(ListenerName(securityProtocol.toString()))
         }
-        return "${kafka.config().hostName()}:$port"
+        return arrayOf("${kafka.config().hostName()}:$port")
     }
 
     /**
@@ -153,13 +167,13 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
             topic, partitions, replication, config
         )
 
-        adminClient().use {adminClient ->
-            val newTopic = NewTopic(topic, partitions, replication.toShort())
-            newTopic.configs(config)
+        adminClient().use {client ->
             try {
-                adminClient.createTopics(listOf(newTopic)).all().get()
-            } catch (e: Exception) {
-                throw RuntimeException("Failed to create topic:$topic", e)
+                val newTopic = NewTopic(topic, partitions, replication.toShort())
+                newTopic.configs(config)
+                client.createTopics(listOf(newTopic)).all().get()
+            } catch (e : ExecutionException) {
+                throw e.cause as Throwable
             }
         }
     }
@@ -167,7 +181,48 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
     /**
      * @return the list of topics that exists on the embedded cluster.
      */
-    fun topics(): Set<String> = adminClient().use { adminClient -> return getTopicNames(adminClient) }
+    fun topics(): Set<String> = adminClient().use { adminClient -> return listTopicNames(adminClient) }
+
+    /**
+     * Waits for all given [topicNames] to be present on the embedded cluster until [timeout].
+     *
+     * @return {@code true} if all topics are present before reaching the timeout, {@code false} otherwise.
+     */
+    fun waitForTopicsToBePresent(vararg topicNames: String,
+                                 timeout: Duration = Duration.ofSeconds(30)): Boolean {
+        val now = System.currentTimeMillis()
+        val required = mutableListOf(*topicNames)
+        return adminClient().use { client ->
+            waitForTrue(timeout, now) {
+                listTopicNames(client).containsAll(required)
+            }
+        }
+    }
+
+    /**
+     * Waits for all given [topicNames] to be absent on the embedded cluster until [timeout].
+     *
+     * @return {@code true} if all topics are absent before reaching the timeout, {@code false} otherwise.
+     */
+    fun waitForTopicsToBeAbsent(vararg topicNames: String,
+                                timeout: Duration = Duration.ofSeconds(30)): Boolean {
+        return adminClient().use {
+            doWaitForTopicsToBeAbsent(topics = arrayOf(*topicNames), until = timeout, adminClient = it)
+        }
+    }
+
+    private fun doWaitForTopicsToBeAbsent(
+        topics: Array<String>,
+        until: Duration = Duration.ofMillis(Long.MAX_VALUE),
+        now : Long = System.currentTimeMillis(),
+        adminClient: AdminClient): Boolean {
+        val remaining: MutableList<String> = mutableListOf(*topics)
+        return waitForTrue(until, now) {
+            val exists = listTopicNames(adminClient)
+            remaining.retainAll(exists)
+            remaining.isEmpty()
+        }
+    }
 
     /**
      * Creates a new admin client.
@@ -176,7 +231,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
      */
     fun adminClient() =
         AdminClient.create(mutableMapOf(
-            Pair(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers()),
+            Pair(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers().joinToString()),
             Pair(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 60000)
         ))
 
@@ -187,7 +242,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
      */
     fun producerClient(config: Map<String, Any?> = emptyMap()): Producer<Any, Any> {
         val configs = HashMap(config)
-        configs[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers()
+        configs[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers().joinToString()
         return KafkaProducer(configs)
     }
 
@@ -200,7 +255,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
                                keyDeserializer: Deserializer<K>? = null,
                                valueDeserializer: Deserializer<V>? = null): Consumer<K, V> {
         val configs = HashMap(config)
-        configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers()
+        configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers().joinToString()
         configs.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java.name)
         configs.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java.name)
         configs.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
@@ -232,18 +287,15 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
     /**
      * Deletes the given [topics] from the cluster.
      */
-    fun deleteTopics(topics: Collection<String?>) {
+    fun deleteTopics(vararg topicNames: String) {
+        val remaining: MutableList<String> = mutableListOf(*topicNames)
         try {
-            adminClient().use { adminClient ->
-                adminClient.deleteTopics(topics).all().get()
-                val remaining: MutableSet<String?> = topics.toMutableSet()
-                while (remaining.isNotEmpty()) {
-                    val topicNames: Set<String> = adminClient.listTopics().names().get()
-                    remaining.retainAll(topicNames)
-                }
+            adminClient().use { client ->
+                client.deleteTopics(remaining).all().get()
+                doWaitForTopicsToBeAbsent(topics = arrayOf(*topicNames), adminClient = client)
             }
         } catch (e: Exception) {
-            throw RuntimeException("Failed to delete topics: $topics", e)
+            throw RuntimeException("Failed to delete topics: $remaining", e)
         }
     }
 
