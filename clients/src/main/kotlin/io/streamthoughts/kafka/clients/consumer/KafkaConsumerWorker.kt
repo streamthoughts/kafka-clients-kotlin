@@ -32,6 +32,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.TopicPartition
@@ -60,7 +61,7 @@ class KafkaConsumerWorker<K, V> (
         private val Log = loggerFor(KafkaConsumerWorker::class.java)
     }
 
-    private val groupId: String = configs.asMap()[ConsumerConfig.GROUP_ID_CONFIG].toString()
+    private val groupId: String = configs[ConsumerConfig.GROUP_ID_CONFIG].toString()
 
     private val defaultClientIdPrefix: String
 
@@ -115,7 +116,7 @@ class KafkaConsumerWorker<K, V> (
     }
 
     private fun computeClientId(taskId: Int): String {
-        val clientId = configs.clientConfigs.clientId
+        val clientId = configs[CommonClientConfigs.CLIENT_ID_CONFIG]
         return clientId?.let { "$defaultClientIdPrefix-$taskId" } ?: ""
     }
 

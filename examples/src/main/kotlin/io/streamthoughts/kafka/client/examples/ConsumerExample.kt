@@ -21,6 +21,7 @@ package io.streamthoughts.kafka.client.examples
 import io.streamthoughts.kafka.clients.consumer.AutoOffsetReset
 import io.streamthoughts.kafka.clients.consumer.ConsumerTask
 import io.streamthoughts.kafka.clients.consumer.ConsumerWorker
+import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
 import io.streamthoughts.kafka.clients.consumer.listener.forEach
 import io.streamthoughts.kafka.clients.kafka
@@ -47,6 +48,8 @@ fun main(args: Array<String>) {
             }
 
             onDeserializationError(DeserializationErrorHandlers.silentlyReplaceWithNull())
+
+            onConsumedError(ConsumedErrorHandlers.closeTaskOnConsumedError())
 
             onPartitionsAssigned { _: Consumer<*, *>, partitions ->
                 println("Partitions assigned: $partitions")

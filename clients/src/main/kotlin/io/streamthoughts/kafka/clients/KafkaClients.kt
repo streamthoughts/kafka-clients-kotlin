@@ -26,24 +26,37 @@ import io.streamthoughts.kafka.clients.producer.KafkaProducerContainer
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
 import org.apache.kafka.common.serialization.Deserializer
 
-class KafkaClients(val kafka: Kafka) {
+/**
+ * [KafkaClients] DSL for building either a new consumer or producer kafka client.
+ */
+class KafkaClients(private val configs: KafkaClientConfigs) {
 
-    private val client: KafkaClientConfigs = KafkaClientConfigs(kafka)
+    /**
+     * Configures the commons configuration for Kafka Client.
+     */
+    fun client(init: KafkaClientConfigs.() -> Unit) : Unit = configs.init()
 
-    fun client(init: KafkaClientConfigs.() -> Unit) {
-        client.init()
-    }
-
+    /**
+     * Creates and configures a new [KafkaConsumerWorker] using the given [init] function
+     * for the given [groupId], [keyDeserializer] and [valueDeserializer]
+     *
+     * @return a new [KafkaConsumerWorker] instance.
+     */
     fun <K, V> consumer(groupId: String,
                         keyDeserializer: Deserializer<K>,
                         valueDeserializer: Deserializer<V>,
                         init: KafkaConsumerWorker.Builder<K, V>.() -> Unit): ConsumerWorker<K, V> {
-        val configs = KafkaConsumerConfigs(client).groupId(groupId)
+        val configs = KafkaConsumerConfigs(configs).groupId(groupId)
         return KafkaConsumerWorker.Builder(configs, keyDeserializer, valueDeserializer).also(init).build()
     }
 
+    /**
+     * Creates and configures a new [ProducerContainer] using the given [init] function.
+     *
+     * @return a new [ProducerContainer] instance.
+     */
     fun<K, V> producer(init: ProducerContainer.Builder<K, V>.() -> Unit): ProducerContainer<K, V> {
-        val configs = KafkaProducerConfigs(client)
+        val configs = KafkaProducerConfigs(configs)
         return KafkaProducerContainer.Builder<K, V>(configs).also(init).build()
     }
 }
@@ -52,10 +65,10 @@ fun <R> kafka(bootstrapServer: String, init: KafkaClients.() -> R): R =
     kafka(arrayOf(bootstrapServer), init)
 
 fun <R> kafka(bootstrapServers: Array<String>, init: KafkaClients.() -> R): R =
-    with(KafkaClients(Kafka(bootstrapServers)), init)
+    kafka(KafkaClientConfigs(Kafka(bootstrapServers)), init)
 
-fun <R> with(kafka: Kafka, init: KafkaClients.() -> R): R =
-    with(KafkaClients(kafka), init)
+fun <R> kafka(kafka: Kafka, init: KafkaClients.() -> R): R =
+    kafka(KafkaClientConfigs(kafka), init)
 
-fun <R> with(kafkaClient: KafkaClients, init: KafkaClients.() -> R): R =
-    kafkaClient.init()
+fun <R> kafka(configs: KafkaClientConfigs, init: KafkaClients.() -> R): R =
+    KafkaClients(configs).init()

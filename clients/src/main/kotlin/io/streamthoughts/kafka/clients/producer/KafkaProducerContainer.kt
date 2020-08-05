@@ -169,8 +169,8 @@ class KafkaProducerContainer<K, V> private constructor(
         if (isInitialized()) {
             throw IllegalStateException("Producer is already initialized")
         }
-        val producerConfigs = HashMap(configs.asMap())
-        clientId = computeNextClientId(producerConfigs)
+        val producerConfigs = HashMap(configs)
+        clientId = computeNextClientId(producerConfigs).also { producerConfigs[ProducerConfig.CLIENT_ID_CONFIG] = it }
         transactionId = producerConfigs[ProducerConfig.TRANSACTIONAL_ID_CONFIG]?.toString()
         logWithProducerInfo(Level.INFO, "Initializing")
         producer = producerFactory?.make(producerConfigs, keySerializer, valueSerializer) ?: KafkaProducer(producerConfigs, keySerializer, valueSerializer)

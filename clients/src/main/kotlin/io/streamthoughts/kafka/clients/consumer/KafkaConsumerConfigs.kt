@@ -18,120 +18,85 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
-import io.streamthoughts.kafka.clients.Configure
 import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 /**
- * Class used to configure a new [org.apache.kafka.clients.consumer.KafkaConsumer] instance.
+ * Uses to build and encapsulate a configuration [Map]
+ * for creating a new [org.apache.kafka.clients.consumer.KafkaConsumer]
  *
  * @see [ConsumerConfig]
  */
-data class KafkaConsumerConfigs (
-    var clientConfigs: KafkaClientConfigs,
-    var autoOffsetReset: String? = null,
-    var autoCommitIntervalMs: Long? = null,
-    var allowAutoCreateTopicsConfig: Boolean? = null,
-    var enableAutoCommit: Boolean? = null,
-    var fetchMaxBytes: Long? = null,
-    var fetchMinBytes: Long? = null,
-    var fetchMaxWaitMs: Long? = null,
-    var groupId : String? = null,
-    var pollRecordsMs : Long = Long.MAX_VALUE,
-    var maxPollRecords : Int? = null,
-    var maxPollIntervalMs : Long? = null,
-    var maxPartitionFetchBytes : Int? = null,
-    var keyDeserializer: String? = null,
-    var valueDeserializer: String? = null
-) : Configure {
+class KafkaConsumerConfigs (clientConfigs: KafkaClientConfigs = empty()) : KafkaClientConfigs(clientConfigs) {
 
-    private val configs = HashMap<String, Any?>(clientConfigs.asMap())
-
-    override fun with(key: String, value: Any?) {
-        configs[key] = value
+    companion object {
+        const val POLL_INTERVAL_MS_CONFIG = "poll.interval.ms"
+        const val POLL_INTERVAL_MS_DEFAULT = Long.MAX_VALUE
     }
 
     /**
      * @see [ConsumerConfig.AUTO_OFFSET_RESET_CONFIG]
      */
     fun autoOffsetReset(autoOffsetReset : String) =
-        apply { this.autoOffsetReset = autoOffsetReset}
+        apply { this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = autoOffsetReset }
     /**
      * @see [ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG]
      */
     fun autoCommitIntervalMs(autoCommitIntervalMs : Long) =
-        apply { this.autoCommitIntervalMs = autoCommitIntervalMs}
+        apply { this[ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG] = autoCommitIntervalMs}
     /**
      * @see [ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG]
      */
     fun allowAutoCreateTopicsConfig(allowAutoCreateTopicsConfig : Boolean) =
-        apply { this.allowAutoCreateTopicsConfig = allowAutoCreateTopicsConfig}
+        apply { this[ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG] = allowAutoCreateTopicsConfig }
     /**
      * @see [ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG]
      */
     fun enableAutoCommit(enableAutoCommit : Boolean) =
-        apply { this.enableAutoCommit = enableAutoCommit}
+        apply { this[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = enableAutoCommit}
     /**
      * @see [ConsumerConfig.FETCH_MAX_BYTES_CONFIG]
      */
     fun fetchMaxBytes(fetchMaxBytes : Long) =
-        apply { this.fetchMaxBytes = fetchMaxBytes}
+        apply { this[ConsumerConfig.FETCH_MAX_BYTES_CONFIG] = fetchMaxBytes }
     /**
      * @see [ConsumerConfig.FETCH_MIN_BYTES_CONFIG]
      */
     fun fetchMinBytes(fetchMinBytes : Long) =
-        apply { this.fetchMinBytes = fetchMinBytes}
+        apply { this[ConsumerConfig.FETCH_MIN_BYTES_CONFIG] = fetchMinBytes}
     /**
      * @see [ConsumerConfig.FETCH_MAX_BYTES_CONFIG]
      */
     fun fetchMaxWaitMs(fetchMaxWaitMs : Long) =
-        apply { this.fetchMaxWaitMs = fetchMaxWaitMs}
+        apply { this[ConsumerConfig.FETCH_MAX_BYTES_CONFIG] = fetchMaxWaitMs}
     /**
      * @see [ConsumerConfig.GROUP_ID_CONFIG]
      */
     fun groupId(groupId : String) =
-        apply { this.groupId = groupId}
+        apply { this[ConsumerConfig.GROUP_ID_CONFIG] = groupId}
     /**
      * @see [ConsumerConfig.MAX_POLL_RECORDS_CONFIG]
      */
     fun maxPollRecords(maxPollRecords : Int) =
-        apply { this.maxPollRecords = maxPollRecords}
+        apply { this[ConsumerConfig.MAX_POLL_RECORDS_CONFIG] = maxPollRecords}
     /**
      * @see [ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG]
      */
     fun maxPartitionFetchBytes(maxPartitionFetchBytes : Int) =
-        apply { this.maxPartitionFetchBytes = maxPartitionFetchBytes}
+        apply { this[ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG] = maxPartitionFetchBytes }
     /**
      * @see [ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG]
      */
     fun keyDeserializer(keyDeserializer : String) =
-        apply { this.keyDeserializer = keyDeserializer}
+        apply { this[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = keyDeserializer}
     /**
      * @see [ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG]
      */
     fun valueDeserializer(valueDeserializer : String) =
-        apply { this.valueDeserializer = valueDeserializer}
-
+        apply { this [ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = valueDeserializer}
 
     fun pollRecordsMs(pollRecordsMs : Long) =
-        apply { this.pollRecordsMs = pollRecordsMs}
+        apply { this[POLL_INTERVAL_MS_CONFIG] = pollRecordsMs }
 
-    override fun asMap(): Map<String, Any?> {
-        val configs = HashMap<String, Any?>(this.configs)
-
-        autoOffsetReset?.let { configs[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = autoOffsetReset }
-        autoCommitIntervalMs?.let { configs[ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG] = autoCommitIntervalMs }
-        allowAutoCreateTopicsConfig?.let { configs[ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG] = allowAutoCreateTopicsConfig }
-        enableAutoCommit?.let { configs[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = enableAutoCommit }
-        fetchMaxWaitMs?.let { configs[ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG] = fetchMaxWaitMs }
-        fetchMaxBytes?.let { configs[ConsumerConfig.FETCH_MAX_BYTES_CONFIG] = fetchMaxBytes }
-        fetchMinBytes?.let { configs[ConsumerConfig.FETCH_MIN_BYTES_CONFIG] = fetchMinBytes }
-        groupId?.let { configs[ConsumerConfig.GROUP_ID_CONFIG] = groupId }
-        maxPollRecords?.let { configs[ConsumerConfig.MAX_POLL_RECORDS_CONFIG] = maxPollRecords }
-        maxPollIntervalMs?.let { configs[ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG] = maxPollIntervalMs }
-        maxPartitionFetchBytes?.let { configs[ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG] = maxPartitionFetchBytes }
-        keyDeserializer?.let { configs[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = keyDeserializer }
-        valueDeserializer?.let { configs[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = valueDeserializer }
-        return configs
-    }
+    override fun with(key: String, value: Any?) = apply { super.with(key, value) }
 }

@@ -29,11 +29,11 @@ import org.junit.jupiter.api.TestInstance
 class KafkaConsumerConfigsTest {
 
     private val kafka = Kafka(bootstrapServers = arrayOf("dummy:1234"))
-    private val client = KafkaClientConfigs(kafka = kafka, clientId = "clientId")
+    private val client = KafkaClientConfigs(kafka = kafka).clientId("clientId")
 
     @Test
     fun should_return_kafka_consumer_config_as_map() {
-        val mapConfigs = KafkaConsumerConfigs(client, groupId = "test-group").asMap()
+        val mapConfigs = KafkaConsumerConfigs(client).groupId("test-group")
         Assertions.assertTrue(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG in mapConfigs)
         Assertions.assertTrue(ConsumerConfig.CLIENT_ID_CONFIG in mapConfigs)
         Assertions.assertTrue(ConsumerConfig.GROUP_ID_CONFIG in mapConfigs)

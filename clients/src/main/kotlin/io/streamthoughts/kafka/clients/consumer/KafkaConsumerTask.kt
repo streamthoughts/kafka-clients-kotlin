@@ -20,6 +20,8 @@ package io.streamthoughts.kafka.clients.consumer
 
 import ch.qos.logback.classic.Level
 import io.streamthoughts.kafka.clients.consumer.ConsumerTask.State
+import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs.Companion.POLL_INTERVAL_MS_CONFIG
+import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs.Companion.POLL_INTERVAL_MS_DEFAULT
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
@@ -77,7 +79,7 @@ class KafkaConsumerTask<K, V>(
 
     private val groupId: String
 
-    private val pollTime = Duration.ofMillis(consumerConfigs.pollRecordsMs)
+    private val pollTime: Duration
 
     private val isAutoCommitEnabled: Boolean
 
@@ -90,7 +92,7 @@ class KafkaConsumerTask<K, V>(
     private val consumedOffsets: MutableMap<TopicPartition, Long> = HashMap()
 
     init {
-        val props= HashMap(consumerConfigs.asMap())
+        val props= HashMap(consumerConfigs)
 
         if (clientId.isEmpty()) {
             clientId = props[ConsumerConfig.CLIENT_ID_CONFIG].toString()
@@ -111,6 +113,10 @@ class KafkaConsumerTask<K, V>(
         groupId = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG)
         clientId = consumerConfig.getString(ConsumerConfig.CLIENT_ID_CONFIG)
         isAutoCommitEnabled = consumerConfig.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+
+        pollTime = Duration.ofMillis(
+            props[POLL_INTERVAL_MS_CONFIG]?.toString()?.toLongOrNull() ?: POLL_INTERVAL_MS_DEFAULT
+        )
     }
 
     override fun pause() {

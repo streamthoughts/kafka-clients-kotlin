@@ -18,12 +18,23 @@
  */
 package io.streamthoughts.kafka.clients
 
-interface Configure {
+import java.io.FileInputStream
+import java.io.InputStream
+import java.util.Properties
 
-    fun with(key: String, value: Any?)
+/**
+ * Convenient method to transform a [Properties] to a [Map] of string keys.
+ */
+fun Properties.toStringMap(): Map<String, Any?> = this.map { (k, v)  -> Pair(k.toString(), v) }.toMap()
 
-    /**
-     * @return the configs properties as [Map].
-     */
-    fun asMap(): Map<String, Any?>
-}
+/**
+ * Convenient method to load config properties from the given [configFile].
+ */
+fun <T:Configs> T.load(configFile: String): T =
+    apply { FileInputStream(configFile).use { load(it) } }
+
+/**
+ * Convenient method to load config properties from the given [inputStream].
+ */
+fun <T:Configs> T.load(inputStream: InputStream): T =
+    apply { putAll((Properties().apply { load(inputStream) }).toStringMap()) }

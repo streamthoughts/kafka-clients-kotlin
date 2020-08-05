@@ -18,6 +18,8 @@
  */
 package io.streamthoughts.kafka.clients
 
+import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
+import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -30,9 +32,34 @@ internal class KafkaClientConfigsTest {
 
     @Test
     fun should_return_kafka_consumer_config_as_map() {
-        val mapConfigs = KafkaClientConfigs(kafka = kafka, clientId = "clientId").asMap()
-        Assertions.assertTrue(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG in mapConfigs)
-        Assertions.assertTrue(ConsumerConfig.CLIENT_ID_CONFIG in mapConfigs)
+        val configs = KafkaClientConfigs(kafka = kafka).clientId("dummy-id")
+        Assertions.assertEquals("dummy:1234", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
+        Assertions.assertEquals("dummy-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
     }
+
+    @Test
+    fun should_load_client_config_given_props_file() {
+        val configs: KafkaClientConfigs = loadClientConfigs(configsInputStream())
+        Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
+        Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
+    }
+
+    @Test
+    fun should_load_consumer_config_given_props_file() {
+        val configs: KafkaConsumerConfigs = loadConsumerConfigs(configsInputStream())
+        Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
+        Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
+    }
+
+    @Test
+    fun should_load_producer_config_given_props_file() {
+        val configs: KafkaProducerConfigs = loadProducerConfigs(configsInputStream())
+        Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
+        Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
+    }
+
+    private fun configsInputStream() = this.javaClass.classLoader
+        .getResourceAsStream("test-configs.properties")
+        ?:throw IllegalArgumentException( "Cannot load properties")
 
 }

@@ -19,6 +19,7 @@
 package io.streamthoughts.kafka.client.examples
 
 import io.streamthoughts.kafka.clients.kafka
+import io.streamthoughts.kafka.clients.loadClientConfigs
 import io.streamthoughts.kafka.clients.producer.Acks
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
 import io.streamthoughts.kafka.clients.producer.callback.closeOnErrorProducerSendCallback

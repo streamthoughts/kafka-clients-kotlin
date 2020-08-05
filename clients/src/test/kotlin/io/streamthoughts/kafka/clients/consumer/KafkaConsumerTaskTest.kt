@@ -26,6 +26,7 @@ import io.streamthoughts.kafka.clients.consumer.error.serialization.Deserializat
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import io.streamthoughts.kafka.clients.loggerFor
 import io.streamthoughts.kafka.clients.producer.Acks
+import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import io.streamthoughts.kafka.tests.TestingEmbeddedKafka
 import io.streamthoughts.kafka.tests.junit.EmbeddedSingleNodeKafkaCluster
 import kotlinx.coroutines.GlobalScope
@@ -33,7 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
-import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -47,6 +47,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import java.time.Duration
+import java.util.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(EmbeddedSingleNodeKafkaCluster::class)
@@ -100,7 +101,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
     }
 
     @Test
-    fun should_invoked_handler_when_error_is_thrown_during_processing() {
+    fun should_invoke_handler_when_error_is_thrown_during_processing() {
         produceSingleRecord()
 
         val captureHandler = CaptureErrorHandler()
@@ -138,11 +139,10 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
 
     private fun produceSingleRecord() {
         cluster.producerClient(
-            mapOf(
-                Pair(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name),
-                Pair(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name),
-                Pair(ProducerConfig.ACKS_CONFIG, Acks.Leader)
-            )
+            KafkaProducerConfigs()
+                .acks(Acks.Leader)
+                .keySerializer(StringSerializer::class.java.name)
+                .valueSerializer(StringSerializer::class.java.name)
         ).use {
             Assertions.assertNotNull(
                 it.send(ProducerRecord(testTopic, 0, "test-key", "test-value")).get()
@@ -155,7 +155,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
     ): KafkaConsumerTask<String, String> {
         return KafkaConsumerTask<String, String>(
             consumerFactory = ConsumerFactory.DefaultConsumerFactory,
-            consumerConfigs = configs.groupId("test-group-${System.currentTimeMillis()}"),
+            consumerConfigs = configs.groupId("test-group-${UUID.randomUUID()}"),
             subscription = subscription,
             keyDeserializer = StringDeserializer(),
             valueDeserializer = StringDeserializer(),
@@ -170,6 +170,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
 
     private class CaptureErrorHandler: ConsumedErrorHandler {
 
+        @Volatile
         var error: CaptureError? = null
 
         override fun handle(
@@ -177,6 +178,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
             records: List<ConsumerRecord<*, *>>,
             thrownException: Exception
         ) {
+            thrownException.printStackTrace()
             error = CaptureError(records, thrownException)
         }
 
