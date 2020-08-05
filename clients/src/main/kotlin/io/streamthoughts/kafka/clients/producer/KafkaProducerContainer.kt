@@ -74,14 +74,14 @@ class KafkaProducerContainer<K, V> private constructor(
     private lateinit var producer: Producer<K, V>
 
     override fun send(
-        pairs: Collection<Pair<K, V>>,
+        records: Collection<Pair<K, V>>,
         topic: String?,
         partition: Int?,
         timestamp: Instant?,
         onSuccess: OnSendSuccessCallback<K, V>?,
         onError: OnSendErrorCallback<K, V>?
     ): Future<List<SendResult<K?, V?>>> {
-        val futures: List<CompletableFuture<SendResult<K?, V?>>> = pairs.map {
+        val futures: List<CompletableFuture<SendResult<K?, V?>>> = records.map {
             send(it.first, it.second, topic, partition, timestamp, onSuccess, onError) as CompletableFuture
         }
         return  CompletableFuture.allOf(*futures.toTypedArray()).thenApply { futures.map { it.join() }.toList() }

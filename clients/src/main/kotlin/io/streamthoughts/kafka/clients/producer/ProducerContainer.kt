@@ -162,7 +162,7 @@ interface ProducerContainer<K, V>: Closeable {
     }
 
     /**
-     * Asynchronously send the given key-value [pair] to the given [topic] (or the default one if null is given)
+     * Asynchronously send the given key-value [record] to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
@@ -171,17 +171,17 @@ interface ProducerContainer<K, V>: Closeable {
      * @see Producer.send
      * @return a [Future] of [SendResult]
      */
-    fun send(pair: Pair<K, V?>,
+    fun send(record: Pair<K, V?>,
              topic: String? = null,
              partition: Int? = null,
              timestamp: Instant? = null,
              onSuccess: OnSendSuccessCallback<K, V>? = null,
              onError: OnSendErrorCallback<K, V>? = null)  : Future<SendResult<K?, V?>> {
-        return send(pair.first, pair.second, topic, partition, timestamp, onSuccess, onError)
+        return send(record.first, record.second, topic, partition, timestamp, onSuccess, onError)
     }
 
     /**
-     * Asynchronously send all the given key-value [pairs] to the given [topic] (or the default one if null is given)
+     * Asynchronously send all the given key-value [records] to the given [topic] (or the default one if null is given)
      * and [partition] with the given [timestamp].
      *
      * Then, optionally invoke the specific given [onSuccess] callback when the record has been acknowledge.
@@ -190,7 +190,7 @@ interface ProducerContainer<K, V>: Closeable {
      * @see Producer.send
      * @return a [Future] of [SendResult]
      */
-    fun send(pairs: Collection<Pair<K, V>>,
+    fun send(records: Collection<Pair<K, V>>,
              topic: String? = null,
              partition: Int? = null,
              timestamp: Instant? = null,
