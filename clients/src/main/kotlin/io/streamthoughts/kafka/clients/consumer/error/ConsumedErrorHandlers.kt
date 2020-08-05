@@ -27,11 +27,8 @@ import org.slf4j.Logger
 import java.time.Duration
 import kotlin.math.max
 
-
-object ConsumedErrorHandlers {
-    fun closeTaskOnConsumedError(): ConsumedErrorHandler = CloseTaskOnConsumedError
-    fun logAndCommitOnConsumedError(): ConsumedErrorHandler = LogAndCommitOnConsumedError
-}
+fun closeTaskOnConsumedError(): ConsumedErrorHandler = CloseTaskOnConsumedError
+fun logAndCommitOnConsumedError(): ConsumedErrorHandler = LogAndCommitOnConsumedError
 
 /**
  * Stops the [ConsumerTask] when an error is thrown while a non-empty batch of [ConsumerRecord] is being processed

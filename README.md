@@ -163,7 +163,7 @@ val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
             autoOffsetReset(AutoOffsetReset.Earliest)
         }
 
-        onDeserializationError(silentlyReplaceWithNull())
+        onDeserializationError(replaceWithNullOnInvalidRecord())
 
         onPartitionsAssigned { _: Consumer<*, *>, partitions ->
             println("Partitions assigned: $partitions")

@@ -20,9 +20,9 @@ package io.streamthoughts.kafka.clients.consumer
 
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerWorker.KafkaConsumerWorker
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
-import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers.closeTaskOnConsumedError
+import io.streamthoughts.kafka.clients.consumer.error.closeTaskOnConsumedError
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
-import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
+import io.streamthoughts.kafka.clients.consumer.error.serialization.logAndFailOnInvalidRecord
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import io.streamthoughts.kafka.clients.consumer.listener.noop
 import io.streamthoughts.kafka.clients.loggerFor
@@ -209,7 +209,7 @@ class KafkaConsumerWorker<K, V> (
                 SimpleConsumerAwareRebalanceListener(),
                 batchRecordListener ?: noop(),
                 onConsumedError ?: closeTaskOnConsumedError(),
-                onDeserializationError ?: DeserializationErrorHandlers.logAndFail(),
+                onDeserializationError ?: logAndFailOnInvalidRecord(),
                 consumerFactory ?: ConsumerFactory.DefaultConsumerFactory
             )
 

@@ -18,8 +18,6 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
-import io.streamthoughts.kafka.clients.Kafka
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,9 +26,6 @@ import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaConsumerConfigsTest {
-
-    private val kafka = Kafka(bootstrapServers = arrayOf("dummy:1234"))
-    private val client = KafkaClientConfigs(kafka = kafka).clientId("clientId")
 
     @Test
     fun should_return_valid_kafka_consumer_config() {

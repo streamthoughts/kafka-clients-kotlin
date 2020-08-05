@@ -21,16 +21,13 @@ package io.streamthoughts.kafka.clients.consumer.error.serialization
 import io.streamthoughts.kafka.clients.loggerFor
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
-object DeserializationErrorHandlers {
+fun <K, V> replaceWithOnInvalidRecord(key: K, value: V): DeserializationErrorHandler<K, V> = ReplaceErrorHandler(key, value)
 
-    fun <K, V> silentlyReplaceWith(key: K, value: V): DeserializationErrorHandler<K, V> = ReplaceErrorHandler(key, value)
+fun <K, V> replaceWithNullOnInvalidRecord(): DeserializationErrorHandler<K, V> = ReplaceErrorHandler()
 
-    fun <K, V> silentlyReplaceWithNull(): DeserializationErrorHandler<K, V> = ReplaceErrorHandler()
+fun <K, V> logAndFailOnInvalidRecord(): DeserializationErrorHandler<K, V> = LogAndFailErrorHandler()
 
-    fun <K, V> logAndFail(): DeserializationErrorHandler<K, V> = LogAndSkipErrorHandler()
-
-    fun <K, V> logAndSkip(): DeserializationErrorHandler<K, V> = LogAndFailErrorHandler()
-}
+fun <K, V> logAndSkipOnInvalidRecord(): DeserializationErrorHandler<K, V> = LogAndSkipErrorHandler()
 
 private class ReplaceErrorHandler<K, V>(
     private val key: K? = null,

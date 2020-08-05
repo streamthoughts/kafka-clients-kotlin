@@ -36,7 +36,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import java.time.Duration
-import java.util.*
+import java.util.Properties
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(EmbeddedSingleNodeKafkaCluster::class)

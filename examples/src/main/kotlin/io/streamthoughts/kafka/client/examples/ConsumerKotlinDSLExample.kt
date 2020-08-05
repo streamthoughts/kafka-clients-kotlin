@@ -21,8 +21,8 @@ package io.streamthoughts.kafka.client.examples
 import io.streamthoughts.kafka.clients.consumer.AutoOffsetReset
 import io.streamthoughts.kafka.clients.consumer.ConsumerTask
 import io.streamthoughts.kafka.clients.consumer.ConsumerWorker
-import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers
-import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
+import io.streamthoughts.kafka.clients.consumer.error.closeTaskOnConsumedError
+import io.streamthoughts.kafka.clients.consumer.error.serialization.replaceWithNullOnInvalidRecord
 import io.streamthoughts.kafka.clients.consumer.listener.forEach
 import io.streamthoughts.kafka.clients.kafka
 import kotlinx.coroutines.delay
@@ -47,9 +47,9 @@ fun main(args: Array<String>) {
                 autoOffsetReset(AutoOffsetReset.Earliest)
             }
 
-            onDeserializationError(DeserializationErrorHandlers.silentlyReplaceWithNull())
+            onDeserializationError(replaceWithNullOnInvalidRecord())
 
-            onConsumedError(ConsumedErrorHandlers.closeTaskOnConsumedError())
+            onConsumedError(closeTaskOnConsumedError())
 
             onPartitionsAssigned { _: Consumer<*, *>, partitions ->
                 println("Partitions assigned: $partitions")

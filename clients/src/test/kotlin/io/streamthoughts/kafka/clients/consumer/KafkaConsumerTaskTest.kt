@@ -19,8 +19,8 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
-import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers
-import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
+import io.streamthoughts.kafka.clients.consumer.error.closeTaskOnConsumedError
+import io.streamthoughts.kafka.clients.consumer.error.serialization.logAndFailOnInvalidRecord
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
 import io.streamthoughts.kafka.clients.loggerFor
 import io.streamthoughts.kafka.clients.producer.Acks
@@ -121,7 +121,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
 
         val consumer = createConsumerFor(
             listener = failingListener,
-            consumedErrorHandler = ConsumedErrorHandlers.closeTaskOnConsumedError()
+            consumedErrorHandler = closeTaskOnConsumedError()
         )
         runBlocking {
             val job = GlobalScope.launch { consumer.run() }
@@ -147,7 +147,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
     }
 
     private fun createConsumerFor(listener: ConsumerBatchRecordsListener<String, String>,
-                                  consumedErrorHandler: ConsumedErrorHandler = ConsumedErrorHandlers.closeTaskOnConsumedError()
+                                  consumedErrorHandler: ConsumedErrorHandler = closeTaskOnConsumedError()
     ): KafkaConsumerTask<String, String> {
         return KafkaConsumerTask<String, String>(
             consumerFactory = ConsumerFactory.DefaultConsumerFactory,
@@ -157,7 +157,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
             valueDeserializer = StringDeserializer(),
             listener = listener,
             clientId = "test-client",
-            deserializationErrorHandler = DeserializationErrorHandlers.logAndFail(),
+            deserializationErrorHandler = logAndFailOnInvalidRecord(),
             consumedErrorHandler = consumedErrorHandler
         )
     }
