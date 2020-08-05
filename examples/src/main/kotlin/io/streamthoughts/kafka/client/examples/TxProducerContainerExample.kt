@@ -18,10 +18,10 @@
  */
 package io.streamthoughts.kafka.client.examples
 
-import io.streamthoughts.kafka.clients.loadProducerConfigs
 import io.streamthoughts.kafka.clients.producer.Acks
 import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import io.streamthoughts.kafka.clients.producer.KafkaProducerContainer
+import io.streamthoughts.kafka.clients.producer.loadProducerConfigs
 import org.apache.kafka.common.serialization.StringSerializer
 import kotlin.system.exitProcess
 

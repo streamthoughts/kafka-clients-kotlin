@@ -46,9 +46,40 @@ Just add **Kafka Clients for Kotlin** to the dependencies of your projects.
 
 ## Getting Started
 
-### Kafka Producer
+### Writing messages to Kafka
 
-See the full code-snippet : [ProducerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerKotlinDSLExample.kt)
+**Example: How to create `KafkaProducer` config ?**
+
+```kotlin
+val configs = producerConfigsOf()
+    .client { bootstrapServers("localhost:9092") }
+    .acks(Acks.Leader)
+    .keySerializer(StringSerializer::class.java.name)
+    .valueSerializer(StringSerializer::class.java.name)
+```
+
+**Example with standard `KafkaProducer` (i.e : using java `kafka-clients`)**
+
+```kotlin
+val producer = KafkaProducer<String, String>(configs)
+
+val messages = listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka")
+producer.use {
+    messages.forEach {value ->
+        val record = ProducerRecord<String, String>(topic, value)
+        producer.send(record) { m: RecordMetadata, e: Exception? ->
+            when (e) {
+                null -> println("Record was successfully sent (topic=${m.topic()}, partition=${m.partition()}, offset= ${m.offset()})")
+                else -> e.printStackTrace()
+            }
+        }
+    }
+}
+```
+
+N.B: See the full source code: [ProducerClientExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerClientExample.kt)
+
+**Example with Kotlin DSL**
 
 ```kotlin
 val producer: ProducerContainer<String, String> = kafka("localhost:9092") {
@@ -65,24 +96,59 @@ val producer: ProducerContainer<String, String> = kafka("localhost:9092") {
 
         defaultTopic("demo-topic")
 
+        onSendError {_, _, error ->
+            e.printStackTrace()
+        }
+
         onSendSuccess{ _, _, metadata ->
             println("Record was sent successfully: topic=${metadata.topic()}, partition=${metadata.partition()}, offset=${metadata.offset()} ")
         }
     }
 }
 
-with(producer) {
-    init()
-    listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka").forEach {
-        send(value = it)
-    }
-    close()
+val messages = listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka")
+producer.use {
+    producer.init() // create internal producer and call initTransaction() if `transactional.id` is set
+    messages.forEach { producer.send(value = it) }
 }
 ```
 
-### Kafka Consumer
+N.B: See the full source code: [ProducerKotlinDSLExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerKotlinDSLExample.kt)
 
-See the full code-snippet : [ConsumerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerKotlinDSLExample.kt)
+### Consuming messages from a Kafka topic
+
+
+**Example: How to create `KafkaConsumer` config ?**
+
+```kotlin
+val configs = consumerConfigsOf()
+    .client { bootstrapServers("localhost:9092") }
+    .groupId("demo-consumer-group")
+    .keyDeserializer(StringDeserializer::class.java.name)
+    .valueDeserializer(StringDeserializer::class.java.name)
+```
+
+**Example with standard `KafkaConsumer` (i.e : using java `kafka-clients`)**
+
+```kotlin
+val consumer = KafkaConsumer<String, String>(configs)
+
+consumer.use {
+    consumer.subscribe(listOf(topic))
+    while(true) {
+        consumer
+            .poll(Duration.ofMillis(500))
+            .forEach { record ->
+                println(
+                    "Received record with key ${record.key()} " +
+                    "and value ${record.value()} from topic ${record.topic()} and partition ${record.partition()}"
+                )
+            }
+    }
+}
+```
+
+N.B: See the full source code: [ConsumerClientExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerClientExample.kt)
 
 ```kotlin
 val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
@@ -97,7 +163,7 @@ val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
             autoOffsetReset(AutoOffsetReset.Earliest)
         }
 
-        onDeserializationError(DeserializationErrorHandlers.silentlyReplaceWithNull())
+        onDeserializationError(silentlyReplaceWithNull())
 
         onPartitionsAssigned { _: Consumer<*, *>, partitions ->
             println("Partitions assigned: $partitions")
@@ -111,11 +177,22 @@ val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
             println("consumed record-value: $value")
         }
 
+        onConsumedError(closeTaskOnConsumedError())
+
         Runtime.getRuntime().addShutdownHook(Thread { run { stop() } })
     }
 }
-consumerWorker.start("topic-test", maxParallelHint = 4)
+
+consumerWorker.use {
+    consumerWorker.start("demo-topic", maxParallelHint = 4)
+    runBlocking {
+        println("All consumers started, waiting one minute before stopping")
+        delay(Duration.ofMinutes(1).toMillis())
+    }
+}
 ```
+
+N.B: See the full source code: [ConsumerKotlinDSLExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerKotlinDSLExample.kt)
 
 ## How to build project ?
 

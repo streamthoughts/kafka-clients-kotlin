@@ -28,68 +28,68 @@ import kotlin.collections.HashMap
  * @see io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
  * @see io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
  */
-open class Configs protected constructor(backed: Map<String, Any?> = emptyMap()) : MutableMap<String, Any?> {
+open class Configs protected constructor(props: Map<String, Any?> = emptyMap()) : MutableMap<String, Any?> {
 
-    private val mutableMap = HashMap(backed)
+    private val props = HashMap(props)
 
     override val entries: MutableSet<MutableMap.MutableEntry<String, Any?>>
-        get() = mutableMap.entries
+        get() = props.entries
 
     override val keys: MutableSet<String>
-        get() = mutableMap.keys
+        get() = props.keys
 
     override val size: Int
-        get() = mutableMap.size
+        get() = props.size
 
     override val values: MutableCollection<Any?>
-        get() = mutableMap.values
+        get() = props.values
 
     override fun containsKey(key: String): Boolean {
-        return mutableMap.containsKey(key)
+        return props.containsKey(key)
     }
 
     override fun containsValue(value: Any?): Boolean {
-        return mutableMap.containsValue(value)
+        return props.containsValue(value)
     }
 
     override fun get(key: String): Any? {
-        return mutableMap[key]
+        return props[key]
     }
 
     override fun isEmpty(): Boolean {
-        return mutableMap.isEmpty()
+        return props.isEmpty()
     }
 
     open fun with(key: String, value: Any?) = apply { this[key] = value }
 
     operator fun set(key: String, value: Any?) {
-        mutableMap[key] = value
+        props[key] = value
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Configs) return false
 
-        if (mutableMap != other.mutableMap) return false
+        if (props != other.props) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return mutableMap.hashCode()
+        return props.hashCode()
     }
 
     override fun toString(): String {
-        return "Configs[$mutableMap]"
+        return "Configs[$props]"
     }
 
     override fun clear() {
-       mutableMap.clear()
+        props.clear()
     }
 
-    override fun put(key: String, value: Any?): Any? = mutableMap.put(key, value)
+    override fun put(key: String, value: Any?): Any? = props.put(key, value)
 
-    override fun putAll(from: Map<out String, Any?>) = mutableMap.putAll(from)
+    override fun putAll(from: Map<out String, Any?>) = props.putAll(from)
 
-    override fun remove(key: String): Any?  = mutableMap.remove(key)
+    override fun remove(key: String): Any?  = props.remove(key)
 }

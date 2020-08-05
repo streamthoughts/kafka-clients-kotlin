@@ -18,9 +18,9 @@
  */
 package io.streamthoughts.kafka.client.examples
 
-import io.streamthoughts.kafka.clients.loadProducerConfigs
 import io.streamthoughts.kafka.clients.producer.Acks
 import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
+import io.streamthoughts.kafka.clients.producer.loadProducerConfigs
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -36,7 +36,6 @@ fun main(args: Array<String>) {
 
     val (config, topic) = args
 
-
     // Load properties from file and customize Producer config.
     val configs: KafkaProducerConfigs = loadProducerConfigs(config)
         .acks(Acks.Leader)
@@ -46,7 +45,6 @@ fun main(args: Array<String>) {
     val producer = KafkaProducer<String, String>(configs)
 
     val messages = listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka")
-
     producer.use {
         messages.forEach {value ->
             val record = ProducerRecord<String, String>(topic, value)

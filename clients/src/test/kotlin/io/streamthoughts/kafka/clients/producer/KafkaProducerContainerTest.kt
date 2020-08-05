@@ -18,11 +18,9 @@
  */
 package io.streamthoughts.kafka.clients.producer
 
-import io.streamthoughts.kafka.clients.Kafka
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import io.streamthoughts.kafka.clients.loggerFor
-import io.streamthoughts.kafka.tests.junit.EmbeddedSingleNodeKafkaCluster
 import io.streamthoughts.kafka.tests.TestingEmbeddedKafka
+import io.streamthoughts.kafka.tests.junit.EmbeddedSingleNodeKafkaCluster
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.errors.TopicExistsException
@@ -38,7 +36,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import java.time.Duration
-import java.util.Properties
+import java.util.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(EmbeddedSingleNodeKafkaCluster::class)
@@ -50,7 +48,6 @@ class KafkaProducerContainerTest(private val cluster: TestingEmbeddedKafka) {
         const val DEFAULT_TOPIC = "default-topic"
         const val TEST_TOPIC = "test-topic"
     }
-    private lateinit var kafka : Kafka
 
     private lateinit var configs: KafkaProducerConfigs
 
@@ -58,8 +55,7 @@ class KafkaProducerContainerTest(private val cluster: TestingEmbeddedKafka) {
 
     @BeforeAll
     fun setUp() {
-        kafka = Kafka(cluster.bootstrapServers())
-        configs = KafkaProducerConfigs(KafkaClientConfigs(kafka))
+        configs = producerConfigsOf().client { bootstrapServers(cluster.bootstrapServers()) }
         createAndInitContainer()
     }
 

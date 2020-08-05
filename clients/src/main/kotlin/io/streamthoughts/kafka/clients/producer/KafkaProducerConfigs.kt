@@ -19,8 +19,12 @@
 package io.streamthoughts.kafka.clients.producer
 
 import io.streamthoughts.kafka.clients.KafkaClientConfigs
+import io.streamthoughts.kafka.clients.load
+import io.streamthoughts.kafka.clients.toStringMap
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.record.CompressionType
+import java.io.InputStream
+import java.util.*
 
 /**
  * Uses to build and encapsulate a configuration [Map]
@@ -28,9 +32,11 @@ import org.apache.kafka.common.record.CompressionType
  *
  * @see [ProducerConfig]
  */
-class KafkaProducerConfigs(clientConfigs: KafkaClientConfigs = empty()) : KafkaClientConfigs(clientConfigs) {
+class KafkaProducerConfigs(props: Map<String, Any?> = emptyMap()) : KafkaClientConfigs(props) {
 
     override fun with(key: String, value: Any?) = apply { super.with(key, value) }
+
+    fun client(init: KafkaClientConfigs.() -> Unit) = apply { this.init() }
 
     /**
      * @see ProducerConfig.ACKS_CONFIG
@@ -97,5 +103,34 @@ class KafkaProducerConfigs(clientConfigs: KafkaClientConfigs = empty()) : KafkaC
      */
     fun valueSerializer(valueSerializer: String) =
         apply { this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = valueSerializer }
-
 }
+
+/**
+ * Creates a new empty [KafkaProducerConfigs].
+ */
+fun emptyProducerConfigs(): KafkaProducerConfigs = KafkaProducerConfigs(emptyMap())
+
+/**
+ * Creates a new [KafkaProducerConfigs] with the given [pairs].
+ */
+fun producerConfigsOf(vararg pairs: Pair<String, Any?>): KafkaProducerConfigs = producerConfigsOf(mapOf(*pairs))
+
+/**
+ * Creates a new [KafkaProducerConfigs] with the given [props].
+ */
+fun producerConfigsOf(props: Map<String, Any?>): KafkaProducerConfigs = KafkaProducerConfigs(props)
+
+/**
+ * Creates a new [KafkaProducerConfigs] with the given [props].
+ */
+fun producerConfigsOf(props: Properties): KafkaProducerConfigs = producerConfigsOf(props.toStringMap())
+
+/**
+ * Convenient method to create and populate a new [KafkaProducerConfigs] from a [configFile].
+ */
+fun loadProducerConfigs(configFile: String): KafkaProducerConfigs = KafkaProducerConfigs().load(configFile)
+
+/**
+ * Convenient method to create and populate a new [KafkaClientConfigs] from an [inputStream].
+ */
+fun loadProducerConfigs(inputStream: InputStream): KafkaProducerConfigs = KafkaProducerConfigs().load(inputStream)

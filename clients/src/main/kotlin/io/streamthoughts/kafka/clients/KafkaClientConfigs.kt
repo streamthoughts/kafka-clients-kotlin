@@ -18,34 +18,24 @@
  */
 package io.streamthoughts.kafka.clients
 
-import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
-import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import org.apache.kafka.clients.CommonClientConfigs
 import java.io.InputStream
 import java.util.Properties
+import kotlin.collections.HashMap
+import kotlin.collections.Map
+import kotlin.collections.emptyMap
+import kotlin.collections.joinToString
+import kotlin.collections.mutableMapOf
+
 
 open class KafkaClientConfigs constructor(props: Map<String, Any?> = emptyMap()): Configs(props) {
 
-    constructor(kafka : Kafka): this(mapOf(
-        Pair(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.bootstrapServers.joinToString())
-    ))
+    constructor(kafka : Kafka): this(bootstrapServersConfig(kafka))
 
     companion object {
-
-        /**
-         * Creates a new [KafkaClientConfigs] with no properties.
-         */
-        fun empty() = KafkaClientConfigs()
-
-        /**
-         * Creates a new [KafkaClientConfigs] with the given [props].
-         */
-        fun of(props: Map<String, Any?>) = KafkaClientConfigs(props)
-
-        /**
-         * Creates a new [KafkaClientConfigs] with the given [props].
-         */
-        fun of(props: Properties) = of(props.toStringMap())
+        private fun bootstrapServersConfig(kafka: Kafka) = mutableMapOf<String, Any?>(
+            Pair(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.bootstrapServers.joinToString())
+        )
     }
 
     /**
@@ -72,35 +62,24 @@ open class KafkaClientConfigs constructor(props: Map<String, Any?> = emptyMap())
 /**
  * Convenient method to create and populate a new [KafkaClientConfigs] from a [configFile].
  */
-fun loadClientConfigs(configFile: String): KafkaClientConfigs
-        = KafkaClientConfigs().load(configFile)
+fun loadClientConfigs(configFile: String): KafkaClientConfigs = KafkaClientConfigs().load(configFile)
 
 /**
  * Convenient method to create and populate a new [KafkaClientConfigs] from an [inputStream].
  */
-fun loadClientConfigs(inputStream: InputStream): KafkaClientConfigs
-        = KafkaClientConfigs().load(inputStream)
+fun loadClientConfigs(inputStream: InputStream): KafkaClientConfigs = KafkaClientConfigs().load(inputStream)
 
 /**
- * Convenient method to create and populate a new [KafkaProducerConfigs] from a [configFile].
+ * Creates a new [KafkaClientConfigs] with no properties.
  */
-fun loadProducerConfigs(configFile: String): KafkaProducerConfigs
-        = KafkaProducerConfigs().load(configFile)
+fun emptyClientConfigs(): KafkaClientConfigs = KafkaClientConfigs()
 
 /**
- * Convenient method to create and populate a new [KafkaClientConfigs] from an [inputStream].
+ * Creates a new [KafkaClientConfigs] with the given [props].
  */
-fun loadProducerConfigs(inputStream: InputStream): KafkaProducerConfigs
-        = KafkaProducerConfigs().load(inputStream)
+fun clientConfigsOf(props: Map<String, Any?>): KafkaClientConfigs = KafkaClientConfigs(HashMap(props))
 
 /**
- * Convenient method to create and populate a new [KafkaConsumerConfigs] from a [configFile].
+ * Creates a new [KafkaClientConfigs] with the given [props].
  */
-fun loadConsumerConfigs(configFile: String): KafkaConsumerConfigs
-        = KafkaConsumerConfigs().load(configFile)
-
-/**
- * Convenient method to create and populate new [KafkaConsumerConfigs]  from an [inputStream].
- */
-fun loadConsumerConfigs(inputStream: InputStream): KafkaConsumerConfigs
-        = KafkaConsumerConfigs().load(inputStream)
+fun clientConfigsOf(props: Properties): KafkaClientConfigs = clientConfigsOf(props.toStringMap())

@@ -18,8 +18,6 @@
  */
 package io.streamthoughts.kafka.clients
 
-import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
-import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -40,20 +38,6 @@ internal class KafkaClientConfigsTest {
     @Test
     fun should_load_client_config_given_props_file() {
         val configs: KafkaClientConfigs = loadClientConfigs(configsInputStream())
-        Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
-        Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
-    }
-
-    @Test
-    fun should_load_consumer_config_given_props_file() {
-        val configs: KafkaConsumerConfigs = loadConsumerConfigs(configsInputStream())
-        Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
-        Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
-    }
-
-    @Test
-    fun should_load_producer_config_given_props_file() {
-        val configs: KafkaProducerConfigs = loadProducerConfigs(configsInputStream())
         Assertions.assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
         Assertions.assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
     }

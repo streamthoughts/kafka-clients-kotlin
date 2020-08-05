@@ -19,7 +19,7 @@
 package io.streamthoughts.kafka.client.examples
 
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
-import io.streamthoughts.kafka.clients.loadConsumerConfigs
+import io.streamthoughts.kafka.clients.consumer.loadConsumerConfigs
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.StringDeserializer
 import java.time.Duration

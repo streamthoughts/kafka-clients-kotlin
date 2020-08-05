@@ -19,11 +19,11 @@
 package io.streamthoughts.kafka.clients
 
 import io.streamthoughts.kafka.clients.consumer.ConsumerWorker
-import io.streamthoughts.kafka.clients.consumer.KafkaConsumerConfigs
 import io.streamthoughts.kafka.clients.consumer.KafkaConsumerWorker
-import io.streamthoughts.kafka.clients.producer.KafkaProducerConfigs
+import io.streamthoughts.kafka.clients.consumer.consumerConfigsOf
 import io.streamthoughts.kafka.clients.producer.KafkaProducerContainer
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
+import io.streamthoughts.kafka.clients.producer.producerConfigsOf
 import org.apache.kafka.common.serialization.Deserializer
 
 /**
@@ -46,7 +46,7 @@ class KafkaClients(private val configs: KafkaClientConfigs) {
                         keyDeserializer: Deserializer<K>,
                         valueDeserializer: Deserializer<V>,
                         init: KafkaConsumerWorker.Builder<K, V>.() -> Unit): ConsumerWorker<K, V> {
-        val configs = KafkaConsumerConfigs(configs).groupId(groupId)
+        val configs = consumerConfigsOf(configs).groupId(groupId)
         return KafkaConsumerWorker.Builder(configs, keyDeserializer, valueDeserializer).also(init).build()
     }
 
@@ -56,7 +56,7 @@ class KafkaClients(private val configs: KafkaClientConfigs) {
      * @return a new [ProducerContainer] instance.
      */
     fun<K, V> producer(init: ProducerContainer.Builder<K, V>.() -> Unit): ProducerContainer<K, V> {
-        val configs = KafkaProducerConfigs(configs)
+        val configs = producerConfigsOf(configs)
         return KafkaProducerContainer.Builder<K, V>(configs).also(init).build()
     }
 }

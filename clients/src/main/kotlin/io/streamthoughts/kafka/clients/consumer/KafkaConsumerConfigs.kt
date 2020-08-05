@@ -19,7 +19,11 @@
 package io.streamthoughts.kafka.clients.consumer
 
 import io.streamthoughts.kafka.clients.KafkaClientConfigs
+import io.streamthoughts.kafka.clients.load
+import io.streamthoughts.kafka.clients.toStringMap
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import java.io.InputStream
+import java.util.*
 
 /**
  * Uses to build and encapsulate a configuration [Map]
@@ -27,12 +31,16 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
  *
  * @see [ConsumerConfig]
  */
-class KafkaConsumerConfigs (clientConfigs: KafkaClientConfigs = empty()) : KafkaClientConfigs(clientConfigs) {
+class KafkaConsumerConfigs (props: Map<String, Any?> = emptyMap()) : KafkaClientConfigs(props) {
 
     companion object {
         const val POLL_INTERVAL_MS_CONFIG = "poll.interval.ms"
         const val POLL_INTERVAL_MS_DEFAULT = Long.MAX_VALUE
     }
+
+    override fun with(key: String, value: Any?) = apply { super.with(key, value) }
+
+    fun client(init: KafkaClientConfigs.() -> Unit) = apply { this.init() }
 
     /**
      * @see [ConsumerConfig.AUTO_OFFSET_RESET_CONFIG]
@@ -97,6 +105,34 @@ class KafkaConsumerConfigs (clientConfigs: KafkaClientConfigs = empty()) : Kafka
 
     fun pollRecordsMs(pollRecordsMs : Long) =
         apply { this[POLL_INTERVAL_MS_CONFIG] = pollRecordsMs }
-
-    override fun with(key: String, value: Any?) = apply { super.with(key, value) }
 }
+
+/**
+ * Creates a new empty [KafkaConsumerConfigs].
+ */
+fun emptyConsumerConfigs(): KafkaConsumerConfigs = KafkaConsumerConfigs(emptyMap())
+
+/**
+ * Creates a new [KafkaConsumerConfigs] with the given [pairs].
+ */
+fun consumerConfigsOf(vararg pairs: Pair<String, Any?>): KafkaConsumerConfigs = consumerConfigsOf(mapOf(*pairs))
+
+/**
+ * Creates a new [KafkaConsumerConfigs] with the given [props].
+ */
+fun consumerConfigsOf(props: Map<String, Any?>): KafkaConsumerConfigs = KafkaConsumerConfigs(props)
+
+/**
+ * Creates a new [KafkaConsumerConfigs] with the given [props].
+ */
+fun consumerConfigsOf(props: Properties):KafkaConsumerConfigs = consumerConfigsOf(props.toStringMap())
+
+/**
+ * Convenient method to create and populate a new [KafkaConsumerConfigs] from a [configFile].
+ */
+fun loadConsumerConfigs(configFile: String): KafkaConsumerConfigs = KafkaConsumerConfigs().load(configFile)
+
+/**
+ * Convenient method to create and populate new [KafkaConsumerConfigs]  from an [inputStream].
+ */
+fun loadConsumerConfigs(inputStream: InputStream): KafkaConsumerConfigs = KafkaConsumerConfigs().load(inputStream)

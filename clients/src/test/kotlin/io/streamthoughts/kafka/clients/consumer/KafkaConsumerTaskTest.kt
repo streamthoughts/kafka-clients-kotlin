@@ -18,8 +18,6 @@
  */
 package io.streamthoughts.kafka.clients.consumer
 
-import io.streamthoughts.kafka.clients.Kafka
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandlers
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandlers
@@ -67,15 +65,13 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
 
     private val subscription: TopicSubscription = getTopicSubscription(testTopic)
 
-    private lateinit var kafka : Kafka
-
     private lateinit var configs: KafkaConsumerConfigs
 
 
     @BeforeAll
     fun setUp() {
-        kafka = Kafka(cluster.bootstrapServers())
-        configs = KafkaConsumerConfigs(KafkaClientConfigs(kafka))
+        configs = emptyConsumerConfigs()
+            .client { bootstrapServers(cluster.bootstrapServers()) }
             .autoOffsetReset(AutoOffsetReset.Earliest)
             .pollRecordsMs(10000)
     }

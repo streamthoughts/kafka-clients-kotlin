@@ -16,50 +16,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.streamthoughts.kafka.clients.consumer
+package io.streamthoughts.kafka.clients.producer
 
-import io.streamthoughts.kafka.clients.Kafka
-import io.streamthoughts.kafka.clients.KafkaClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KafkaConsumerConfigsTest {
-
-    private val kafka = Kafka(bootstrapServers = arrayOf("dummy:1234"))
-    private val client = KafkaClientConfigs(kafka = kafka).clientId("clientId")
+class KafkaProducerConfigsTest {
 
     @Test
-    fun should_return_valid_kafka_consumer_config() {
-        val configs: KafkaConsumerConfigs = consumerConfigsOf()
+    fun should_return_valid_kafka_producer_config() {
+
+        val configs: KafkaProducerConfigs = producerConfigsOf()
             .client {
                 bootstrapServers("dummy:1234")
                 clientId("test-id")
             }
-            .groupId("test-group")
-            .keyDeserializer(StringDeserializer::class.java.name)
-            .valueDeserializer(StringDeserializer::class.java.name)
+            .acks(Acks.Leader)
+            .keySerializer(StringSerializer::class.java.name)
+            .valueSerializer(StringSerializer::class.java.name)
 
-        assertEquals("dummy:1234", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG])
-        assertEquals("test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG])
-        assertEquals("test-group", configs[ConsumerConfig.GROUP_ID_CONFIG])
-        assertEquals(StringDeserializer::class.java.name, configs[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG])
-        assertEquals(StringDeserializer::class.java.name, configs[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG])
+        assertEquals("dummy:1234", configs[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG])
+        assertEquals("test-id", configs[ProducerConfig.CLIENT_ID_CONFIG])
+        assertEquals(Acks.Leader, configs[ProducerConfig.ACKS_CONFIG])
+        assertEquals(StringSerializer::class.java.name, configs[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG])
+        assertEquals(StringSerializer::class.java.name, configs[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG])
     }
 
     @Test
-    fun should_load_consumer_config_given_props_file() {
-        val configs: KafkaConsumerConfigs = loadConsumerConfigs(configsInputStream())
+    fun should_load_producer_config_given_props_file() {
+        val configs: KafkaProducerConfigs = loadProducerConfigs(configsInputStream())
         assertEquals("localhost:9092", configs[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] as String)
         assertEquals("client-test-id", configs[ConsumerConfig.CLIENT_ID_CONFIG] as String)
     }
 
-
     private fun configsInputStream() = this.javaClass.classLoader
         .getResourceAsStream("test-configs.properties")
         ?:throw IllegalArgumentException( "Cannot load properties")
-
 }
