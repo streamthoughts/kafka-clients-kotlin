@@ -114,7 +114,7 @@ class KafkaConsumerTaskTest(private val cluster: TestingEmbeddedKafka) {
             try {
                 captureHandler.assertThatEventuallyCapture("Fail to capture processing error before timeout")
             } finally {
-                consumer.shutdown()
+                consumer.close()
             }
         }
     }

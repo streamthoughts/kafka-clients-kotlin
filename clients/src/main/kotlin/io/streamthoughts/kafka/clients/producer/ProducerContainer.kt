@@ -28,6 +28,7 @@ import org.apache.kafka.common.Metric
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.PartitionInfo
 import org.apache.kafka.common.serialization.Serializer
+import java.io.Closeable
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Future
@@ -52,7 +53,7 @@ data class UnrecoverableErrorTransactionResult( val exception: Exception): Trans
  */
 object CommittedTransactionResult: TransactionResult()
 
-interface ProducerContainer<K, V> {
+interface ProducerContainer<K, V>: Closeable {
 
     enum class State {
         /**
@@ -261,7 +262,7 @@ interface ProducerContainer<K, V> {
      *
      * @see [Producer.close].
      */
-    fun close() {
+    override fun close() {
         close(Duration.ofMillis(Long.MAX_VALUE))
     }
 

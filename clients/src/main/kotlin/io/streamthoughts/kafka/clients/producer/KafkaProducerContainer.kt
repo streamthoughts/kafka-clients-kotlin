@@ -199,7 +199,7 @@ class KafkaProducerContainer<K, V> private constructor(
     }
 
     override fun close(timeout: Duration) {
-        if (isClosed()) return // silently ignore call if producer is already closed.
+        if (isClosed() || !isInitialized()) return // silently ignore call if producer is already closed.
 
         runOrThrowIfIllegalState {
             state = ProducerContainer.State.PENDING_SHUTDOWN

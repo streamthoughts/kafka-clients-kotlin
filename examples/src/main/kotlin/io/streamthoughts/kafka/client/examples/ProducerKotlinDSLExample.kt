@@ -19,7 +19,6 @@
 package io.streamthoughts.kafka.client.examples
 
 import io.streamthoughts.kafka.clients.kafka
-import io.streamthoughts.kafka.clients.loadClientConfigs
 import io.streamthoughts.kafka.clients.producer.Acks
 import io.streamthoughts.kafka.clients.producer.ProducerContainer
 import io.streamthoughts.kafka.clients.producer.callback.closeOnErrorProducerSendCallback
@@ -49,11 +48,11 @@ fun main(args: Array<String>) {
         }
     }
 
-    with(producer) {
-        init()
-        listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka").forEach {
-            send(value = it)
+    val messages = listOf("I ❤️ Logs", "Making Sense of Stream Processing", "Apache Kafka")
+    producer.use {
+        producer.init() // create internal KafkaProducer and eventually call initTransaction if transactional.id is set
+        messages.forEach {
+            producer.send(value = it)
         }
-        close()
     }
 }

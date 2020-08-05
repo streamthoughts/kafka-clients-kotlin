@@ -21,9 +21,10 @@ package io.streamthoughts.kafka.clients.consumer
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
+import java.io.Closeable
 import java.time.Duration
 
-interface ConsumerTask{
+interface ConsumerTask: Closeable {
 
     enum class State {
         /**
@@ -78,13 +79,13 @@ interface ConsumerTask{
      * Shutdowns the [ConsumerTask] and wait for completion.
      * @see org.apache.kafka.clients.consumer.Consumer.close
      */
-    fun shutdown()
+    override fun close()
 
     /**
      * Shutdowns the [ConsumerTask] and wait for completion until the given [timeout].
      * @see org.apache.kafka.clients.consumer.Consumer.close
      */
-    fun shutdown(timeout: Duration)
+    fun close(timeout: Duration)
 
     /**
      * @return the [State] of this [ConsumerTask].

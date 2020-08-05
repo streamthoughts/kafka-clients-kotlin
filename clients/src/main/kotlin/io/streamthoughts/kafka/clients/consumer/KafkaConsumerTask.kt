@@ -221,14 +221,14 @@ class KafkaConsumerTask<K, V>(
         }
     }
 
-    override fun shutdown() {
+    override fun close() {
         logWithConsumerInfo(Level.INFO, "Closing")
         isShutdown.set(true)
         consumer.wakeup()
         shutdownLatch.await()
     }
 
-    override fun shutdown(timeout: Duration) {
+    override fun close(timeout: Duration) {
         logWithConsumerInfo(Level.INFO, "Closing")
         isShutdown.set(true)
         consumer.wakeup()

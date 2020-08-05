@@ -43,7 +43,7 @@ private object CloseTaskOnConsumedError: ConsumedErrorHandler {
 
     override fun handle(consumerTask: ConsumerTask, records: List<ConsumerRecord<*, *>>, thrownException: Exception) {
         Log.error("Stopping consumerTask after an exception was thrown while processing records", thrownException)
-        consumerTask.shutdown(Duration.ZERO)
+        consumerTask.close(Duration.ZERO)
     }
 }
 

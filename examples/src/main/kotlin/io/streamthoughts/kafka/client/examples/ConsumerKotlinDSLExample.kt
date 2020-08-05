@@ -65,12 +65,11 @@ fun main(args: Array<String>) {
         }
     }
 
-    with (consumerWorker) {
-        start("demo-topic", maxParallelHint = 4)
+    consumerWorker.use {
+        consumerWorker.start("demo-topic", maxParallelHint = 4)
         runBlocking {
             println("All consumers started, waiting one minute before stopping")
             delay(Duration.ofMinutes(1).toMillis())
-            stop()
         }
     }
 }

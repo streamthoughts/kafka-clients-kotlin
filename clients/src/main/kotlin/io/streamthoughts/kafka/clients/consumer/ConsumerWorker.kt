@@ -21,13 +21,15 @@ package io.streamthoughts.kafka.clients.consumer
 import io.streamthoughts.kafka.clients.consumer.error.ConsumedErrorHandler
 import io.streamthoughts.kafka.clients.consumer.error.serialization.DeserializationErrorHandler
 import io.streamthoughts.kafka.clients.consumer.listener.ConsumerBatchRecordsListener
+import java.io.Closeable
+import java.time.Duration
 import java.util.regex.Pattern
 
 /**
  * The [ConsumerWorker] manages one or many concurrent [org.apache.kafka.clients.consumer.Consumer] that belong
  * to the same {@code group.id}.
  */
-interface ConsumerWorker<K, V> {
+interface ConsumerWorker<K, V>: Closeable {
 
 
     interface Builder<K, V> {
@@ -115,7 +117,7 @@ interface ConsumerWorker<K, V> {
     /**
      * Stops all [org.apache.kafka.clients.consumer.Consumer] managed by this [ConsumerWorker].
      */
-    fun stop()
+    override fun close()
 
     /**
      * Pauses all [org.apache.kafka.clients.consumer.Consumer] managed by this [ConsumerWorker].

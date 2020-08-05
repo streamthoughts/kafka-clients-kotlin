@@ -139,10 +139,10 @@ class KafkaConsumerWorker<K, V> (
         consumerJobs.joinAll()
     }
 
-    override fun stop() {
+    override fun close() {
         if (isRunning.get()) {
             Log.info("KafkaConsumerWorker(group: $groupId): Stopping all io.streamthoughts.kafka.clients.consumer tasks")
-            consumerTasks.forEach { it.shutdown() }
+            consumerTasks.forEach { it.close() }
             isRunning.set(false)
         }
     }
