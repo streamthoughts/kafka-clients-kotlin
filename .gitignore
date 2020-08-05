@@ -129,7 +129,4 @@ crashlytics-build.properties
 # Created by .ignore support plugin (hsz.mobi)
 #
 #
-azkarra-*/docs
-azkarra-server/src/main/resources/io/
-*/node_modules
-site/resources
+.mvn/wrapper/MavenWrapperDownloader.java
