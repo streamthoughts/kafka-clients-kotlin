@@ -48,7 +48,7 @@ Just add **Kafka Clients for Kotlin** to the dependencies of your projects.
 
 ### Kafka Producer
 
-See the full code-snippet : [ProducerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerExample.kt)
+See the full code-snippet : [ProducerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerKotlinDSLExample.kt)
 
 ```kotlin
 val producer: ProducerContainer<String, String> = kafka("localhost:9092") {
@@ -82,7 +82,7 @@ with(producer) {
 
 ### Kafka Consumer
 
-See the full code-snippet : [ConsumerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerExample.kt)
+See the full code-snippet : [ConsumerExample.kt](https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerKotlinDSLExample.kt)
 
 ```kotlin
 val consumerWorker: ConsumerWorker<String, String> = kafka("localhost:9092") {
