@@ -5,6 +5,7 @@
 image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/LICENSE]
 image:https://img.shields.io/github/v/release/streamthoughts/kafka-clients-kotlin[GitHub release (latest by date)]
 image:https://img.shields.io/github/issues-raw/streamthoughts/kafka-clients-kotlin[GitHub issues]
+image:https://img.shields.io/github/workflow/status/streamthoughts/kafka-clients-kotlin/Java%20CI%20with%20Maven[GitHub Workflow Status]
 image:https://img.shields.io/github/stars/streamthoughts/kafka-clients-kotlin?style=social[GitHub Repo stars]
 
 WARNING: Be aware that this package is still in heavy development. Some breaking change will occur in future weeks and months.
@@ -205,6 +206,14 @@ consumerWorker.use {
 ----
 
 N.B: See the full source code: https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerKotlinDSLExample.kt[ConsumerKotlinDSLExample.kt]
+
+== All Examples:
+
+* https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerClientExample.kt[ProducerClientExample.kt]
+* https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ProducerKotlinDSLExample.kt[ProducerKotlinDSLExample.kt]
+* https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/TxProducerContainerExample.kt[TxProducerContainerExample.kt]
+* https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerClientExample.kt[ConsumerClientExample.kt]
+* https://github.com/streamthoughts/kafka-clients-kotlin/blob/master/examples/src/main/kotlin/io/streamthoughts/kafka/client/examples/ConsumerKotlinDSLExample.kt[ConsumerKotlinDSLExample.kt]
 
 == How to build project ?
 
