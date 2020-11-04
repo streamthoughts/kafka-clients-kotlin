@@ -24,6 +24,7 @@ import io.streamthoughts.kafka.clients.toStringMap
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.record.CompressionType
 import java.io.InputStream
+import java.time.Duration
 import java.util.*
 
 /**
@@ -51,10 +52,22 @@ class KafkaProducerConfigs(props: Map<String, Any?> = emptyMap()) : KafkaClientC
         apply { this[ProducerConfig.BATCH_SIZE_CONFIG] = batchSize }
 
     /**
+     * @see ProducerConfig.BUFFER_MEMORY_CONFIG
+     */
+    fun bufferMemory(bufferMemory: Long) =
+        apply { this[ProducerConfig.BUFFER_MEMORY_CONFIG] =  bufferMemory}
+
+    /**
      * @see ProducerConfig.COMPRESSION_TYPE_CONFIG
      */
     fun compressionType(compressionType: CompressionType) =
         apply { this[ProducerConfig.COMPRESSION_TYPE_CONFIG] = compressionType.toString().toLowerCase() }
+
+    /**
+     * @see ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG
+     */
+    fun deliveryTimeout(deliveryTimeout: Duration) =
+        apply { this[ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG] = deliveryTimeout.toMillis() }
 
     /**
      * @see ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG
@@ -73,6 +86,12 @@ class KafkaProducerConfigs(props: Map<String, Any?> = emptyMap()) : KafkaClientC
      */
     fun maxInFlightRequestsPerConnection(maxInFlightRequestsPerConnection: Int) =
         apply { this[ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION] = maxInFlightRequestsPerConnection }
+
+    /**
+     * @see ProducerConfig.MAX_BLOCK_MS_CONFIG
+     */
+    fun maxBlock(maxBlockDuration: Duration) =
+        apply { this[ProducerConfig.MAX_BLOCK_MS_CONFIG] =  maxBlockDuration.toMillis()}
 
     /**
      * @see ProducerConfig.RETRIES_CONFIG
