@@ -215,7 +215,7 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
         topics: Array<String>,
         until: Duration = Duration.ofMillis(Long.MAX_VALUE),
         now : Long = System.currentTimeMillis(),
-        adminClient: AdminClient): Boolean {
+        adminClient: Admin): Boolean {
         val remaining: MutableList<String> = mutableListOf(*topics)
         return waitForTrue(until, now) {
             val exists = listTopicNames(adminClient)
@@ -229,11 +229,13 @@ class TestingEmbeddedKafka(config: Properties = Properties()) {
      *
      * @return a new [org.apache.kafka.clients.admin.AdminClient] instance.
      */
-    fun adminClient() =
-        AdminClient.create(mutableMapOf(
+    fun adminClient(): Admin {
+        val config: Map<String, Any> = mutableMapOf(
             Pair(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers().joinToString()),
             Pair(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 60000)
-        ))
+        )
+        return AdminClient.create(config)
+    }
 
     /**
      * Creates a new producer client.

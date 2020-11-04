@@ -70,13 +70,13 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-        <kotlin.version>1.3.72</kotlin.version>
-        <kotlinx.version>1.3.8</kotlinx.version>
+        <kotlin.version>1.4.10</kotlin.version>
+        <kotlinx.version>1.4.0</kotlinx.version>
         <kotlin.code.style>official</kotlin.code.style>
-        <kafka.version>2.5.0</kafka.version>
+        <kafka.version>2.6.0</kafka.version>
         <junit.version>5.5.2</junit.version>
         <logback.version>1.2.3</logback.version>
-        <dokka.version>0.10.1</dokka.version>
+        <dokka.version>1.4.10</dokka.version>
     </properties>
 
     <profiles>

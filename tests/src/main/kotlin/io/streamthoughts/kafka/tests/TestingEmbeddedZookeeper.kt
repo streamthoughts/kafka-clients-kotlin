@@ -23,6 +23,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.net.BindException
+import kotlin.jvm.Throws
 
 /**
  * Runs an in-memory, "embedded" instance of a ZooKeeper server.
