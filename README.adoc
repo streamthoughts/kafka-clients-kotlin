@@ -107,7 +107,7 @@ val producer: ProducerContainer<String, String> = kafka("localhost:9092") {
         defaultTopic("demo-topic")
 
         onSendError {_, _, error ->
-            e.printStackTrace()
+            error.printStackTrace()
         }
 
         onSendSuccess{ _, _, metadata ->
